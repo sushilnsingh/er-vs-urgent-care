@@ -494,30 +494,7 @@ IMPORTANT:
     This tool provides general information only and is not a substitute for professional medical advice.
   </p>
 </div>
-```
-
-**Save the file!** (Ctrl+S)
-
----
-
-### **STEP 5: VERIFY YOUR FILES**
-
-**Check your folder structure:**
-```
-er-urgent-care-deployment/
-├── src/
-│   ├── pages/
-│   │   ├── PrivacyPolicy.jsx     ✅
-│   │   ├── Terms.jsx              ✅
-│   │   ├── About.jsx              ✅
-│   │   ├── Contact.jsx            ✅
-│   │   └── AffiliateDisclosure.jsx ✅
-│   ├── App.jsx                    ✅ (updated)
-│   ├── main.jsx                   ✅ (replaced)
-│   └── index.css
-├── index.html                     ✅ (with AdSense)
-└── package.json
-      </div>
+</div>
     </div>
   );
 }
