@@ -274,12 +274,19 @@ IMPORTANT:
               </div>
 
               {/* Alternatives */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <p className="font-semibold text-gray-900 mb-2">Important Note:</p>
-                <p className="text-gray-700">{result.alternatives}</p>
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      <span className="font-bold">Important Note:</span>
+                      <br />
+                      {result.alternatives}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* CTA Buttons - Revenue Sources */}
+              {/* CTA Buttons */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <a
                   href="https://www.google.com/search?q=telemedicine+online+doctor"
@@ -301,10 +308,128 @@ IMPORTANT:
                 </a>
               </div>
 
+              {/* Amazon Affiliate Products Section */}
+              <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Recommended Health & Safety Products
+                </h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Be prepared for emergencies with these essential health monitoring and first aid supplies:
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* First Aid Kit */}
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
+                    <div className="overflow-hidden">
+                      <img 
+                        src="/images/first-aid-kit.jpg"
+                        alt="First Aid Only OSHA-Compliant First Aid Kit, 260 Pieces"
+                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-bold text-gray-800 mb-1">First Aid Kit</h4>
+                      <p className="text-xs text-gray-500 mb-3">OSHA-Compliant • 260 Pieces</p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Complete emergency kit for home, car, and workplace. Be prepared for minor injuries and emergencies.
+                      </p>
+                      <a 
+                        href="https://amzn.to/4iczKz1"
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="block w-full text-white font-semibold py-2 px-4 rounded text-center transition-colors"
+                        style={{backgroundColor: '#FF9900'}}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
+                      >
+                        View on Amazon →
+                      </a>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        ⭐⭐⭐⭐⭐ #1 Best Seller
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Thermometer */}
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
+                    <div className="overflow-hidden">
+                      <img 
+                        src="/images/thermometer.jpg"
+                        alt="No-Touch Digital Thermometer for Adults and Kids"
+                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-bold text-gray-800 mb-1">Digital Thermometer</h4>
+                      <p className="text-xs text-gray-500 mb-3">No-Touch • Forehead & Object</p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Accurate fever detection for adults and kids. No-contact technology with fever alarm and silent mode.
+                      </p>
+                      <a 
+                        href="https://amzn.to/3X9lmxV"
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="block w-full text-white font-semibold py-2 px-4 rounded text-center transition-colors"
+                        style={{backgroundColor: '#FF9900'}}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
+                      >
+                        View on Amazon →
+                      </a>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        ⭐⭐⭐⭐⭐ Essential for Fevers
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Blood Pressure Monitor */}
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
+                    <div className="overflow-hidden">
+                      <img 
+                        src="/images/blood-pressure.jpg"
+                        alt="OMRON Blood Pressure Monitor for Home Use"
+                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h4 className="font-bold text-gray-800 mb-1">Blood Pressure Monitor</h4>
+                      <p className="text-xs text-gray-500 mb-3">OMRON • #1 Doctor Recommended</p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Clinically validated home monitor. Easy-to-use upper arm cuff for accurate BP readings.
+                      </p>
+                      <a 
+                        href="https://amzn.to/48ev3An"
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="block w-full text-white font-semibold py-2 px-4 rounded text-center transition-colors"
+                        style={{backgroundColor: '#FF9900'}}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
+                      >
+                        View on Amazon →
+                      </a>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        ⭐⭐⭐⭐⭐ Clinically Validated
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-6 text-center">
+                  <span className="font-semibold">Disclosure:</span> As an Amazon Associate, we earn from qualifying purchases. These recommendations help support our free medical guidance tool.
+                </p>
+              </div>
+
               {/* New Analysis Button */}
               <button
                 onClick={resetTool}
-                className="w-full bg-gray-200 text-gray-900 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                className="w-full bg-gray-200 text-gray-900 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors mt-6"
               >
                 Analyze Different Symptoms
               </button>
@@ -321,39 +446,6 @@ IMPORTANT:
             with any questions you may have regarding a medical condition. If you think you may have a medical 
             emergency, call 911 immediately.
           </p>
-        </div>
-
-        {/* Revenue Demo Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Ad Space Demo */}
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 text-center">
-            <p className="text-sm text-gray-600 mb-2">Advertisement</p>
-            <p className="font-semibold text-gray-900">Health Insurance Quote</p>
-            <p className="text-sm text-gray-600 mt-1">Get covered for as low as $50/month</p>
-            <a 
-              href="https://www.google.com/search?q=health+insurance+quotes"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
-            >
-              Get Free Quote
-            </a>
-          </div>
-
-          {/* Affiliate Demo */}
-          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 text-center">
-            <p className="text-sm text-gray-600 mb-2">Recommended Service</p>
-            <p className="font-semibold text-gray-900">24/7 Telemedicine Access</p>
-            <p className="text-sm text-gray-600 mt-1">Doctor consultations from $0</p>
-            <a 
-              href="https://www.google.com/search?q=online+doctor+consultation"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
-            >
-              Start Free Trial
-            </a>
-          </div>
         </div>
 
         {/* Stats Section */}
