@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertCircle, Clock, DollarSign, MapPin, Phone, CheckCircle, ArrowRight } from 'lucide-react';
-
 export default function App() {
   const [step, setStep] = useState('input');
   const [symptoms, setSymptoms] = useState('');
@@ -468,10 +468,55 @@ IMPORTANT:
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center text-gray-600 text-sm mt-8 pb-8">
-          <p>© 2024 ER vs Urgent Care Tool. Not affiliated with any medical facility.</p>
-        </div>
+       {/* Enhanced Footer with Legal Links */}
+<div className="bg-white rounded-lg p-6 text-center border-t-2 border-gray-200 mt-8">
+  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm">
+    <Link to="/about" className="text-gray-600 hover:text-blue-600 transition-colors">
+      About Us
+    </Link>
+    <Link to="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">
+      Contact
+    </Link>
+    <Link to="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors">
+      Privacy Policy
+    </Link>
+    <Link to="/terms" className="text-gray-600 hover:text-blue-600 transition-colors">
+      Terms & Conditions
+    </Link>
+    <Link to="/affiliate-disclosure" className="text-gray-600 hover:text-blue-600 transition-colors">
+      Affiliate Disclosure
+    </Link>
+  </div>
+  <p className="text-gray-600 text-sm">
+    © 2024 ER vs Urgent Care Tool. Not affiliated with any medical facility.
+  </p>
+  <p className="text-gray-500 text-xs mt-2">
+    This tool provides general information only and is not a substitute for professional medical advice.
+  </p>
+</div>
+```
+
+**Save the file!** (Ctrl+S)
+
+---
+
+### **STEP 5: VERIFY YOUR FILES**
+
+**Check your folder structure:**
+```
+er-urgent-care-deployment/
+├── src/
+│   ├── pages/
+│   │   ├── PrivacyPolicy.jsx     ✅
+│   │   ├── Terms.jsx              ✅
+│   │   ├── About.jsx              ✅
+│   │   ├── Contact.jsx            ✅
+│   │   └── AffiliateDisclosure.jsx ✅
+│   ├── App.jsx                    ✅ (updated)
+│   ├── main.jsx                   ✅ (replaced)
+│   └── index.css
+├── index.html                     ✅ (with AdSense)
+└── package.json
       </div>
     </div>
   );
