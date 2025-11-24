@@ -1,8 +1,3 @@
-// ADD THESE TWO IMPORTS
-import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
-import EmergencyAlert from './EmergencyAlert';
-// In your App() function, add this with your other useState:
-const [isEmergency, setIsEmergency] = useState(false);
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Clock, DollarSign, MapPin, Phone, CheckCircle, ArrowRight } from 'lucide-react';
