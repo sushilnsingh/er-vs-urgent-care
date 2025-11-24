@@ -1,24 +1,60 @@
+// ADD THESE TWO IMPORTS
+import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
+import EmergencyAlert from './EmergencyAlert';
+// In your App() function, add this with your other useState:
+const [isEmergency, setIsEmergency] = useState(false);
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Clock, DollarSign, MapPin, Phone, CheckCircle, ArrowRight } from 'lucide-react';
+import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
+import EmergencyAlert from './EmergencyAlert';
 export default function App() {
   const [step, setStep] = useState('input');
   const [symptoms, setSymptoms] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
+  const [isEmergency, setIsEmergency] = useState(false);
 
-  const analyzeSymptoms = async () => {
+const analyzeSymptoms = async () => {
     if (!symptoms.trim()) return;
 
+    // 🚨 EMERGENCY DETECTION FIRST - Before any AI call
+    const emergencyCheck = detectEmergency(symptoms);
+    
+    if (emergencyCheck.isEmergency) {
+      // EMERGENCY DETECTED - Show 911 alert immediately
+      const emergencyResult = generateEmergencyResult(emergencyCheck);
+      setResult(emergencyResult);
+      setIsEmergency(true);
+      setStep('emergency');
+      
+      // Log emergency detection for legal protection
+      console.log('EMERGENCY DETECTED:', {
+        timestamp: new Date().toISOString(),
+        symptoms: symptoms,
+        category: emergencyCheck.category,
+        pattern: emergencyCheck.matchedPattern
+      });
+      
+      return; // Stop here - do NOT call AI
+    }
+
+    // NOT an emergency - proceed with normal AI analysis
     setLoading(true);
     setStep('analyzing');
 
-    const userMessage = {
+   const userMessage = {
       role: "user",
       content: `I need you to act as a medical triage assistant. Analyze these symptoms and determine if the person should go to the Emergency Room, Urgent Care, or can handle this at home.
 
 Symptoms: ${symptoms}
+
+IMPORTANT SAFETY RULES:
+- Be VERY conservative with safety - when in doubt, recommend ER
+- Look for red flags like severe pain, bleeding, breathing issues, chest symptoms
+- If symptoms are vague, note that clarifying questions would help
+- NEVER downplay potentially serious symptoms
 
 Provide your response in the following JSON format ONLY. Do not include any text outside the JSON:
 {
@@ -32,11 +68,7 @@ Provide your response in the following JSON format ONLY. Do not include any text
   "alternatives": "When to escalate to higher level of care"
 }
 
-IMPORTANT: 
-- Be conservative with safety - when in doubt, recommend higher level of care
-- Look for red flags like chest pain, difficulty breathing, severe bleeding, altered consciousness
-- Consider severity, duration, and progression of symptoms
-- Your entire response must be valid JSON only, no other text`
+IMPORTANT: Your entire response must be valid JSON only, no other text`
     };
 
     try {
@@ -86,14 +118,14 @@ IMPORTANT:
     }
   };
 
-  const getRecommendationColor = (rec) => {
-    if (rec === 'ER') return 'bg-red-50 border-red-300';
+ const getRecommendationColor = (rec) => {
+    if (rec === 'ER' || rec === 'EMERGENCY_911') return 'bg-red-50 border-red-300';
     if (rec === 'URGENT_CARE') return 'bg-yellow-50 border-yellow-300';
     return 'bg-green-50 border-green-300';
   };
 
-  const getRecommendationIcon = (rec) => {
-    if (rec === 'ER') return 'text-red-600';
+const getRecommendationIcon = (rec) => {
+    if (rec === 'ER' || rec === 'EMERGENCY_911') return 'text-red-600';
     if (rec === 'URGENT_CARE') return 'text-yellow-600';
     return 'text-green-600';
   };
@@ -102,7 +134,13 @@ IMPORTANT:
     setStep('input');
     setSymptoms('');
     setResult(null);
+    setIsEmergency(false);  // 🚨 ADD THIS LINE
   };
+
+ // 🚨 If emergency detected, show emergency alert ONLY
+  if (isEmergency && result) {
+    return <EmergencyAlert emergencyResult={result} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -156,22 +194,26 @@ IMPORTANT:
                 <ArrowRight className="w-5 h-5" />
               </button>
 
-              {/* Emergency Warning */}
-              <div className="mt-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+{/* Emergency Warning - Enhanced */}
+              <div className="mt-6 p-6 bg-red-50 border-4 border-red-600 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-semibold text-red-900 mb-1">
-                      🚨 Call 911 Immediately If You Experience:
+                    <p className="font-bold text-red-900 mb-3 text-lg">
+                      🚨 CALL 911 IMMEDIATELY IF YOU HAVE:
                     </p>
-                    <ul className="text-red-800 space-y-1">
-                      <li>• Chest pain or pressure</li>
-                      <li>• Difficulty breathing or shortness of breath</li>
-                      <li>• Sudden severe headache or vision changes</li>
+                    <ul className="text-red-800 space-y-2 font-semibold">
+                      <li>• Chest pain or pressure (especially with arm/jaw pain)</li>
+                      <li>• Difficulty breathing or can't catch your breath</li>
+                      <li>• Stroke symptoms (face drooping, arm weakness, slurred speech)</li>
                       <li>• Loss of consciousness or severe confusion</li>
                       <li>• Severe bleeding that won't stop</li>
-                      <li>• Suspected stroke symptoms (face drooping, arm weakness, speech difficulty)</li>
+                      <li>• Suspected poisoning or overdose</li>
+                      <li>• Severe allergic reaction (throat swelling, can't breathe)</li>
                     </ul>
+                    <p className="mt-4 text-red-900 font-bold text-base">
+                      ⚠️ DO NOT USE THIS TOOL - CALL 911 NOW
+                    </p>
                   </div>
                 </div>
               </div>
