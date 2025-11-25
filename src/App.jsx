@@ -15,7 +15,14 @@ export default function App() {
   const [vagueResult, setVagueResult] = useState(null);
 const [followUpAnswers, setFollowUpAnswers] = useState(null);
 const analyzeSymptoms = async (combinedSymptoms = null) => {
-      if (!symptoms.trim()) return;
+  const symptomsToAnalyze = combinedSymptoms || symptoms;
+  
+  console.log('=== ANALYZE SYMPTOMS CALLED ===');
+  console.log('combinedSymptoms param:', combinedSymptoms);
+  console.log('symptoms state:', symptoms);
+  console.log('symptomsToAnalyze:', symptomsToAnalyze);
+  console.log('symptomsToAnalyze length:', symptomsToAnalyze.length);
+  if (!symptomsToAnalyze.trim()) return;
 const symptomsToAnalyze = combinedSymptoms || symptoms;
     // 🚨 EMERGENCY DETECTION FIRST - Before any AI call
 const emergencyCheck = detectEmergency(symptomsToAnalyze);    
