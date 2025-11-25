@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, Clock, DollarSign, MapPin, Phone, CheckCircle, ArrowRight } from 'lucide-react';
 import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
 import EmergencyAlert from './EmergencyAlert';
+import { detectVagueSymptom, formatFollowUpAnswers } from './vagueSymptomDetection';
+import FollowUpQuestions from './FollowUpQuestions';
 export default function App() {
   const [step, setStep] = useState('input');
   const [symptoms, setSymptoms] = useState('');
@@ -10,13 +12,13 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [isEmergency, setIsEmergency] = useState(false);
-
-const analyzeSymptoms = async () => {
-    if (!symptoms.trim()) return;
-
+  const [vagueResult, setVagueResult] = useState(null);
+const [followUpAnswers, setFollowUpAnswers] = useState(null);
+const analyzeSymptoms = async (combinedSymptoms = null) => {
+      if (!symptoms.trim()) return;
+const symptomsToAnalyze = combinedSymptoms || symptoms;
     // 🚨 EMERGENCY DETECTION FIRST - Before any AI call
-    const emergencyCheck = detectEmergency(symptoms);
-    
+const emergencyCheck = detectEmergency(symptomsToAnalyze);    
     if (emergencyCheck.isEmergency) {
       // EMERGENCY DETECTED - Show 911 alert immediately
       const emergencyResult = generateEmergencyResult(emergencyCheck);
@@ -27,23 +29,39 @@ const analyzeSymptoms = async () => {
       // Log emergency detection for legal protection
       console.log('EMERGENCY DETECTED:', {
         timestamp: new Date().toISOString(),
-        symptoms: symptoms,
-        category: emergencyCheck.category,
+symptoms: symptomsToAnalyze,
+category: emergencyCheck.category,
         pattern: emergencyCheck.matchedPattern
       });
       
-      return; // Stop here - do NOT call AI
-    }
+ return; // Stop here - do NOT call AI
+  }
 
-    // NOT an emergency - proceed with normal AI analysis
-    setLoading(true);
-    setStep('analyzing');
+  // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
+  if (!combinedSymptoms) {
+    const vagueCheck = detectVagueSymptom(symptomsToAnalyze);
+    
+    if (vagueCheck.isVague) {
+      console.log('VAGUE SYMPTOM DETECTED:', {
+        category: vagueCheck.category,
+        pattern: vagueCheck.matchedPattern
+      });
+      
+      setVagueResult(vagueCheck);
+      setStep('followup');
+      return;
+    }
+  }
+
+  // NOT emergency, NOT vague (or already has follow-up) - proceed with AI
+  setLoading(true);
+  setStep('analyzing');
 
    const userMessage = {
       role: "user",
       content: `I need you to act as a medical triage assistant. Analyze these symptoms and determine if the person should go to the Emergency Room, Urgent Care, or can handle this at home.
 
-Symptoms: ${symptoms}
+Symptoms: ${symptomsToAnalyze}
 
 IMPORTANT SAFETY RULES:
 - Be VERY conservative with safety - when in doubt, recommend ER
@@ -77,7 +95,23 @@ IMPORTANT: Your entire response must be valid JSON only, no other text`
   })
 });
 
-      const data = await response.json();
+      console.log('Response status:', response.status);
+console.log('Response ok:', response.ok);
+
+if (!response.ok) {
+  throw new Error(`API error: ${response.status}`);
+}
+
+// Check if response has content
+const text = await response.text();
+console.log('Response text:', text);
+
+if (!text) {
+  throw new Error('Empty response from API');
+}
+
+const data = JSON.parse(text);
+console.log('Parsed data:', data);
       let responseText = data.content[0].text;
       
       // Strip markdown code blocks if present
@@ -125,12 +159,33 @@ const getRecommendationIcon = (rec) => {
     return 'text-green-600';
   };
 
-  const resetTool = () => {
-    setStep('input');
-    setSymptoms('');
-    setResult(null);
-    setIsEmergency(false);  // 🚨 ADD THIS LINE
-  };
+const resetTool = () => {
+  setStep('input');
+  setSymptoms('');
+  setResult(null);
+  setIsEmergency(false);
+  setVagueResult(null);
+  setFollowUpAnswers(null);
+};
+const handleFollowUpComplete = (answers) => {
+  setFollowUpAnswers(answers);
+  
+  // Combine original symptoms with follow-up answers
+  const formattedAnswers = formatFollowUpAnswers(answers);
+  const combinedSymptoms = symptoms + formattedAnswers;
+  
+  console.log('FOLLOW-UP ANSWERS:', answers);
+  console.log('COMBINED SYMPTOMS:', combinedSymptoms);
+  
+  // Now analyze with full context
+  analyzeSymptoms(combinedSymptoms);
+};
+
+const handleFollowUpBack = () => {
+  setStep('input');
+  setVagueResult(null);
+  setFollowUpAnswers(null);
+};
 
  // 🚨 If emergency detected, show emergency alert ONLY
   if (isEmergency && result) {
@@ -214,8 +269,16 @@ const getRecommendationIcon = (rec) => {
               </div>
             </div>
           )}
+          {step === 'followup' && vagueResult && (
+  <FollowUpQuestions
+    vagueResult={vagueResult}
+    onComplete={handleFollowUpComplete}
+    onBack={handleFollowUpBack}
+  />
+)}
 
-          {step === 'analyzing' && (
+{step === 'analyzing' && (
+
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
               <p className="text-xl font-semibold text-gray-900">
