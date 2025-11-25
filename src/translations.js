@@ -1,3 +1,5 @@
+import { newCategories } from './newCategoryTranslations';
+
 // translations.js
 // Complete English and Spanish translations
 
@@ -90,7 +92,33 @@ export const translations = {
         triggers: "Triggers",
         radiates: "Radiates To",
         temperature: "Temperature",
-        recent: "Recent Events"
+        recent: "Recent Events",
+        breathing: 'Breathing Difficulty',
+  fatigue: 'Fatigue Level',
+  nausea: 'Nausea/Vomiting',
+  skin: 'Skin Condition',
+  joint: 'Joint/Muscle Pain',
+  urinary: 'Urinary Symptoms',
+  anxiety: 'Anxiety/Mood',
+  sleep: 'Sleep Issues',
+  temperatureSymptom: 'Temperature Regulation',
+  numbness: 'Tingling/Numbness',
+  weight: 'Weight Changes',
+  nonspecific: 'General Symptoms',
+  vomiting: 'Vomiting Status',
+  content: 'Vomit Appearance',
+  activities: 'Activity Impact',
+  mobility: 'Joint Mobility',
+  pain_location: 'Pain Location',
+  history: 'Medical History',
+  problem: 'Sleep Problem',
+  symptom: 'Temperature Symptom',
+  timing: 'Timing',
+  amount: 'Amount',
+  appetite: 'Appetite',
+  impact: 'Impact on Daily Life',
+  physical: 'Physical Symptoms',
+  habits: 'Sleep Habits'
       },
       
       // Abdominal questions
@@ -187,7 +215,8 @@ export const translations = {
             "More than 1 day"
           ]
         }
-      }
+      },
+      ...newCategories.en
     },
     
     // Analyzing
@@ -358,7 +387,33 @@ export const translations = {
         triggers: "Desencadenantes",
         radiates: "Se Irradia Hacia",
         temperature: "Temperatura",
-        recent: "Eventos Recientes"
+        recent: "Eventos Recientes",
+        breathing: 'Dificultad Respiratoria',
+  fatigue: 'Nivel de Fatiga',
+  nausea: 'Náusea/Vómito',
+  skin: 'Condición de la Piel',
+  joint: 'Dolor Articular/Muscular',
+  urinary: 'Síntomas Urinarios',
+  anxiety: 'Ansiedad/Estado de Ánimo',
+  sleep: 'Problemas de Sueño',
+  temperatureSymptom: 'Regulación de Temperatura',
+  numbness: 'Hormigueo/Entumecimiento',
+  weight: 'Cambios de Peso',
+  nonspecific: 'Síntomas Generales',
+  vomiting: 'Estado de Vómito',
+  content: 'Apariencia del Vómito',
+  activities: 'Impacto en Actividades',
+  mobility: 'Movilidad Articular',
+  pain_location: 'Ubicación del Dolor',
+  history: 'Historial Médico',
+  problem: 'Problema de Sueño',
+  symptom: 'Síntoma de Temperatura',
+  timing: 'Momento',
+  amount: 'Cantidad',
+  appetite: 'Apetito',
+  impact: 'Impacto en la Vida Diaria',
+  physical: 'Síntomas Físicos',
+  habits: 'Hábitos de Sueño'
       },
       
       abdominal: {
@@ -453,7 +508,8 @@ export const translations = {
             "Más de 1 día"
           ]
         }
-      }
+      },
+            ...newCategories.es
     },
     
     // Analyzing
