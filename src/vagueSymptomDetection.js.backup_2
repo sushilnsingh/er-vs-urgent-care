@@ -609,6 +609,8 @@ const VAGUE_PATTERNS = {
       'extremely tired',
       'always tired',
       'tired all the time',
+       "i'm tired", 
+       "im tired",   
       'not feeling like myself',
       'low energy',
       'always sleepy',
@@ -1071,6 +1073,8 @@ const VAGUE_PATTERNS = {
       'anxious',
       'anxiety',
       'feeling anxious',
+       "i'm anxious",
+       "im anxious",
       'nervous',
       'feel down',
       'low mood',
@@ -1162,6 +1166,8 @@ const VAGUE_PATTERNS = {
       'trouble sleeping',
       'cant sleep',
       'cannot sleep',
+          "can't sleep",
+"can not sleep", 
       'insomnia',
       'trouble falling asleep',
       'wake up tired',
@@ -1594,16 +1600,12 @@ export function detectVagueSymptom(symptoms) {
     return { isVague: false };
   }
 
-  // Normalize symptoms: lowercase, trim, and remove apostrophes
-  const symptomsLower = symptoms.toLowerCase().trim().replace(/[']/g, '');
+  const symptomsLower = symptoms.toLowerCase().trim();
   
   // Check each vague category
   for (const [category, data] of Object.entries(VAGUE_PATTERNS)) {
     for (const pattern of data.patterns) {
-      // Also normalize the pattern by removing apostrophes
-      const normalizedPattern = pattern.replace(/[']/g, '');
-      
-      if (symptomsLower.includes(normalizedPattern)) {
+      if (symptomsLower.includes(pattern)) {
         return {
           isVague: true,
           category: category,
