@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, Clock, DollarSign, MapPin, Phone, CheckCircle, ArrowRight } from 'lucide-react';
 import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
 import EmergencyAlert from './EmergencyAlert';
-import { detectVagueSymptom, formatFollowUpAnswers } from './vagueSymptomDetection';
+import { detectVagueSymptom } from './vagueSymptomDetection';
 import FollowUpQuestions from './FollowUpQuestions';
 export default function App() {
   const [step, setStep] = useState('input');
@@ -170,23 +170,46 @@ const resetTool = () => {
 const handleFollowUpComplete = (answers) => {
   setFollowUpAnswers(answers);
   
-  // Format answers into readable text
-  let formattedAnswers = '\n\nAdditional Patient Information:\n';
+  // Format answers into readable text with better labels
+  let formattedAnswers = '\n\nADDITIONAL PATIENT DETAILS:\n';
+  
+  const labelMap = {
+    location: 'Pain Location',
+    severity: 'Pain Severity (1-10)',
+    rebound: 'Rebound Tenderness',
+    associated: 'Associated Symptoms',
+    duration: 'Duration',
+    onset: 'Onset',
+    type: 'Type',
+    triggers: 'Triggers',
+    radiates: 'Radiates To',
+    temperature: 'Temperature',
+    recent: 'Recent Events'
+  };
   
   for (const [questionId, answer] of Object.entries(answers)) {
+    const label = labelMap[questionId] || questionId;
+    
     if (Array.isArray(answer)) {
-      formattedAnswers += `${questionId}: ${answer.join(', ')}\n`;
+      if (answer.length > 0) {
+        formattedAnswers += `- ${label}: ${answer.join(', ')}\n`;
+      }
     } else {
-      formattedAnswers += `${questionId}: ${answer}\n`;
+      formattedAnswers += `- ${label}: ${answer}\n`;
     }
   }
+  
+  formattedAnswers += '\nIMPORTANT: Please analyze ALL of the above information together when making your recommendation.\n';
   
   const combinedSymptoms = symptoms + formattedAnswers;
   
   console.log('FOLLOW-UP ANSWERS:', answers);
-  console.log('FORMATTED ANSWERS:', formattedAnswers);
+  console.log('FORMATTED TEXT:', formattedAnswers);
   console.log('COMBINED SYMPTOMS:', combinedSymptoms);
   
+  // Now analyze with full context
+  analyzeSymptoms(combinedSymptoms);
+};  
   // Now analyze with full context
   analyzeSymptoms(combinedSymptoms);
 };
