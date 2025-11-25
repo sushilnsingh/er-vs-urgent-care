@@ -5,6 +5,7 @@ import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
 import EmergencyAlert from './EmergencyAlert';
 import { detectVagueSymptom } from './vagueSymptomDetection';
 import FollowUpQuestions from './FollowUpQuestions';
+
 export default function App() {
   const [step, setStep] = useState('input');
   const [symptoms, setSymptoms] = useState('');
@@ -13,58 +14,59 @@ export default function App() {
   const [conversationHistory, setConversationHistory] = useState([]);
   const [isEmergency, setIsEmergency] = useState(false);
   const [vagueResult, setVagueResult] = useState(null);
-const [followUpAnswers, setFollowUpAnswers] = useState(null);
-const analyzeSymptoms = async (combinedSymptoms = null) => {
-  const symptomsToAnalyze = combinedSymptoms || symptoms;
-  
-  console.log('=== ANALYZE SYMPTOMS CALLED ===');
-  console.log('combinedSymptoms param:', combinedSymptoms);
-  console.log('symptoms state:', symptoms);
-  console.log('symptomsToAnalyze:', symptomsToAnalyze);
-  console.log('symptomsToAnalyze length:', symptomsToAnalyze.length);
-  if (!symptomsToAnalyze.trim()) return;
-const symptomsToAnalyze = combinedSymptoms || symptoms;
-    // 🚨 EMERGENCY DETECTION FIRST - Before any AI call
-const emergencyCheck = detectEmergency(symptomsToAnalyze);    
+  const [followUpAnswers, setFollowUpAnswers] = useState(null);
+
+  const analyzeSymptoms = async (combinedSymptoms = null) => {
+    const symptomsToAnalyze = combinedSymptoms || symptoms;
+    
+    console.log('=== ANALYZE SYMPTOMS CALLED ===');
+    console.log('combinedSymptoms param:', combinedSymptoms);
+    console.log('symptoms state:', symptoms);
+    console.log('symptomsToAnalyze:', symptomsToAnalyze);
+    console.log('symptomsToAnalyze length:', symptomsToAnalyze.length);
+    
+    if (!symptomsToAnalyze.trim()) return;
+
+    // 🚨 EMERGENCY DETECTION FIRST
+    const emergencyCheck = detectEmergency(symptomsToAnalyze);
+    
     if (emergencyCheck.isEmergency) {
-      // EMERGENCY DETECTED - Show 911 alert immediately
       const emergencyResult = generateEmergencyResult(emergencyCheck);
       setResult(emergencyResult);
       setIsEmergency(true);
       setStep('emergency');
       
-      // Log emergency detection for legal protection
       console.log('EMERGENCY DETECTED:', {
         timestamp: new Date().toISOString(),
-symptoms: symptomsToAnalyze,
-category: emergencyCheck.category,
+        symptoms: symptomsToAnalyze,
+        category: emergencyCheck.category,
         pattern: emergencyCheck.matchedPattern
       });
       
- return; // Stop here - do NOT call AI
-  }
-
-  // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
-  if (!combinedSymptoms) {
-    const vagueCheck = detectVagueSymptom(symptomsToAnalyze);
-    
-    if (vagueCheck.isVague) {
-      console.log('VAGUE SYMPTOM DETECTED:', {
-        category: vagueCheck.category,
-        pattern: vagueCheck.matchedPattern
-      });
-      
-      setVagueResult(vagueCheck);
-      setStep('followup');
       return;
     }
-  }
 
-  // NOT emergency, NOT vague (or already has follow-up) - proceed with AI
-  setLoading(true);
-  setStep('analyzing');
+    // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
+    if (!combinedSymptoms) {
+      const vagueCheck = detectVagueSymptom(symptomsToAnalyze);
+      
+      if (vagueCheck.isVague) {
+        console.log('VAGUE SYMPTOM DETECTED:', {
+          category: vagueCheck.category,
+          pattern: vagueCheck.matchedPattern
+        });
+        
+        setVagueResult(vagueCheck);
+        setStep('followup');
+        return;
+      }
+    }
 
-   const userMessage = {
+    // NOT emergency, NOT vague - proceed with AI
+    setLoading(true);
+    setStep('analyzing');
+
+    const userMessage = {
       role: "user",
       content: `I need you to act as a medical triage assistant. Analyze these symptoms and determine if the person should go to the Emergency Room, Urgent Care, or can handle this at home.
 
@@ -73,7 +75,7 @@ Symptoms: ${symptomsToAnalyze}
 IMPORTANT SAFETY RULES:
 - Be VERY conservative with safety - when in doubt, recommend ER
 - Look for red flags like severe pain, bleeding, breathing issues, chest symptoms
-- If symptoms are vague, note that clarifying questions would help
+- Consider ALL information provided including any clarifying details
 - NEVER downplay potentially serious symptoms
 
 Provide your response in the following JSON format ONLY. Do not include any text outside the JSON:
@@ -92,36 +94,35 @@ IMPORTANT: Your entire response must be valid JSON only, no other text`
     };
 
     try {
-    const response = await fetch("/api/analyze", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    messages: [...conversationHistory, userMessage]
-  })
-});
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [...conversationHistory, userMessage]
+        })
+      });
 
       console.log('Response status:', response.status);
-console.log('Response ok:', response.ok);
+      console.log('Response ok:', response.ok);
 
-if (!response.ok) {
-  throw new Error(`API error: ${response.status}`);
-}
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
 
-// Check if response has content
-const text = await response.text();
-console.log('Response text:', text);
+      const text = await response.text();
+      console.log('Response text:', text);
 
-if (!text) {
-  throw new Error('Empty response from API');
-}
+      if (!text) {
+        throw new Error('Empty response from API');
+      }
 
-const data = JSON.parse(text);
-console.log('Parsed data:', data);
+      const data = JSON.parse(text);
+      console.log('Parsed data:', data);
+      
       let responseText = data.content[0].text;
       
-      // Strip markdown code blocks if present
       responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       
       const analysis = JSON.parse(responseText);
@@ -154,79 +155,75 @@ console.log('Parsed data:', data);
     }
   };
 
- const getRecommendationColor = (rec) => {
+  const handleFollowUpComplete = (answers) => {
+    setFollowUpAnswers(answers);
+    
+    let formattedAnswers = '\n\nADDITIONAL PATIENT DETAILS:\n';
+    
+    const labelMap = {
+      location: 'Pain Location',
+      severity: 'Pain Severity (1-10)',
+      rebound: 'Rebound Tenderness',
+      associated: 'Associated Symptoms',
+      duration: 'Duration',
+      onset: 'Onset',
+      type: 'Type',
+      triggers: 'Triggers',
+      radiates: 'Radiates To',
+      temperature: 'Temperature',
+      recent: 'Recent Events'
+    };
+    
+    for (const [questionId, answer] of Object.entries(answers)) {
+      const label = labelMap[questionId] || questionId;
+      
+      if (Array.isArray(answer)) {
+        if (answer.length > 0) {
+          formattedAnswers += `- ${label}: ${answer.join(', ')}\n`;
+        }
+      } else {
+        formattedAnswers += `- ${label}: ${answer}\n`;
+      }
+    }
+    
+    formattedAnswers += '\nIMPORTANT: Please analyze ALL of the above information together when making your recommendation.\n';
+    
+    const combinedSymptoms = symptoms + formattedAnswers;
+    
+    console.log('FOLLOW-UP ANSWERS:', answers);
+    console.log('FORMATTED TEXT:', formattedAnswers);
+    console.log('COMBINED SYMPTOMS:', combinedSymptoms);
+    
+    analyzeSymptoms(combinedSymptoms);
+  };
+
+  const handleFollowUpBack = () => {
+    setStep('input');
+    setVagueResult(null);
+    setFollowUpAnswers(null);
+  };
+
+  const getRecommendationColor = (rec) => {
     if (rec === 'ER' || rec === 'EMERGENCY_911') return 'bg-red-50 border-red-300';
     if (rec === 'URGENT_CARE') return 'bg-yellow-50 border-yellow-300';
     return 'bg-green-50 border-green-300';
   };
 
-const getRecommendationIcon = (rec) => {
+  const getRecommendationIcon = (rec) => {
     if (rec === 'ER' || rec === 'EMERGENCY_911') return 'text-red-600';
     if (rec === 'URGENT_CARE') return 'text-yellow-600';
     return 'text-green-600';
   };
 
-const resetTool = () => {
-  setStep('input');
-  setSymptoms('');
-  setResult(null);
-  setIsEmergency(false);
-  setVagueResult(null);
-  setFollowUpAnswers(null);
-};
-const handleFollowUpComplete = (answers) => {
-  setFollowUpAnswers(answers);
-  
-  // Format answers into readable text with better labels
-  let formattedAnswers = '\n\nADDITIONAL PATIENT DETAILS:\n';
-  
-  const labelMap = {
-    location: 'Pain Location',
-    severity: 'Pain Severity (1-10)',
-    rebound: 'Rebound Tenderness',
-    associated: 'Associated Symptoms',
-    duration: 'Duration',
-    onset: 'Onset',
-    type: 'Type',
-    triggers: 'Triggers',
-    radiates: 'Radiates To',
-    temperature: 'Temperature',
-    recent: 'Recent Events'
+  const resetTool = () => {
+    setStep('input');
+    setSymptoms('');
+    setResult(null);
+    setIsEmergency(false);
+    setVagueResult(null);
+    setFollowUpAnswers(null);
   };
-  
-  for (const [questionId, answer] of Object.entries(answers)) {
-    const label = labelMap[questionId] || questionId;
-    
-    if (Array.isArray(answer)) {
-      if (answer.length > 0) {
-        formattedAnswers += `- ${label}: ${answer.join(', ')}\n`;
-      }
-    } else {
-      formattedAnswers += `- ${label}: ${answer}\n`;
-    }
-  }
-  
-  formattedAnswers += '\nIMPORTANT: Please analyze ALL of the above information together when making your recommendation.\n';
-  
-  const combinedSymptoms = symptoms + formattedAnswers;
-  
-  console.log('FOLLOW-UP ANSWERS:', answers);
-  console.log('FORMATTED TEXT:', formattedAnswers);
-  console.log('COMBINED SYMPTOMS:', combinedSymptoms);
-  
-  // Now analyze with full context
-  analyzeSymptoms(combinedSymptoms);
-};  
-  // Now analyze with full context
-  analyzeSymptoms(combinedSymptoms);
-};
-const handleFollowUpBack = () => {
-  setStep('input');
-  setVagueResult(null);
-  setFollowUpAnswers(null);
-};
 
- // 🚨 If emergency detected, show emergency alert ONLY
   if (isEmergency && result) {
     return <EmergencyAlert emergencyResult={result} />;
   }
@@ -275,7 +272,7 @@ const handleFollowUpBack = () => {
               </div>
 
               <button
-                onClick={analyzeSymptoms}
+                onClick={() => analyzeSymptoms()}
                 disabled={!symptoms.trim()}
                 className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
@@ -283,7 +280,7 @@ const handleFollowUpBack = () => {
                 <ArrowRight className="w-5 h-5" />
               </button>
 
-{/* Emergency Warning - Enhanced */}
+              {/* Emergency Warning - Enhanced */}
               <div className="mt-6 p-6 bg-red-50 border-4 border-red-600 rounded-lg">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" />
@@ -308,16 +305,16 @@ const handleFollowUpBack = () => {
               </div>
             </div>
           )}
+
           {step === 'followup' && vagueResult && (
-  <FollowUpQuestions
-    vagueResult={vagueResult}
-    onComplete={handleFollowUpComplete}
-    onBack={handleFollowUpBack}
-  />
-)}
+            <FollowUpQuestions
+              vagueResult={vagueResult}
+              onComplete={handleFollowUpComplete}
+              onBack={handleFollowUpBack}
+            />
+          )}
 
-{step === 'analyzing' && (
-
+          {step === 'analyzing' && (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
               <p className="text-xl font-semibold text-gray-900">
@@ -607,33 +604,33 @@ const handleFollowUpBack = () => {
           </div>
         </div>
 
-       {/* Enhanced Footer with Legal Links */}
-<div className="bg-white rounded-lg p-6 text-center border-t-2 border-gray-200 mt-8">
-  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm">
-    <Link to="/about" className="text-gray-600 hover:text-blue-600 transition-colors">
-      About Us
-    </Link>
-    <Link to="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">
-      Contact
-    </Link>
-    <Link to="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors">
-      Privacy Policy
-    </Link>
-    <Link to="/terms" className="text-gray-600 hover:text-blue-600 transition-colors">
-      Terms & Conditions
-    </Link>
-    <Link to="/affiliate-disclosure" className="text-gray-600 hover:text-blue-600 transition-colors">
-      Affiliate Disclosure
-    </Link>
-  </div>
-  <p className="text-gray-600 text-sm">
-    © 2024 ER vs Urgent Care Tool. Not affiliated with any medical facility.
-  </p>
-  <p className="text-gray-500 text-xs mt-2">
-    This tool provides general information only and is not a substitute for professional medical advice.
-  </p>
-</div>
-</div>
+        {/* Enhanced Footer with Legal Links */}
+        <div className="bg-white rounded-lg p-6 text-center border-t-2 border-gray-200 mt-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm">
+            <Link to="/about" className="text-gray-600 hover:text-blue-600 transition-colors">
+              About Us
+            </Link>
+            <Link to="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">
+              Contact
+            </Link>
+            <Link to="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="text-gray-600 hover:text-blue-600 transition-colors">
+              Terms & Conditions
+            </Link>
+            <Link to="/affiliate-disclosure" className="text-gray-600 hover:text-blue-600 transition-colors">
+              Affiliate Disclosure
+            </Link>
+          </div>
+          <p className="text-gray-600 text-sm">
+            © 2024 ER vs Urgent Care Tool. Not affiliated with any medical facility.
+          </p>
+          <p className="text-gray-500 text-xs mt-2">
+            This tool provides general information only and is not a substitute for professional medical advice.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
