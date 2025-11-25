@@ -170,17 +170,26 @@ const resetTool = () => {
 const handleFollowUpComplete = (answers) => {
   setFollowUpAnswers(answers);
   
-  // Combine original symptoms with follow-up answers
-  const formattedAnswers = formatFollowUpAnswers(answers);
+  // Format answers into readable text
+  let formattedAnswers = '\n\nAdditional Patient Information:\n';
+  
+  for (const [questionId, answer] of Object.entries(answers)) {
+    if (Array.isArray(answer)) {
+      formattedAnswers += `${questionId}: ${answer.join(', ')}\n`;
+    } else {
+      formattedAnswers += `${questionId}: ${answer}\n`;
+    }
+  }
+  
   const combinedSymptoms = symptoms + formattedAnswers;
   
   console.log('FOLLOW-UP ANSWERS:', answers);
+  console.log('FORMATTED ANSWERS:', formattedAnswers);
   console.log('COMBINED SYMPTOMS:', combinedSymptoms);
   
   // Now analyze with full context
   analyzeSymptoms(combinedSymptoms);
 };
-
 const handleFollowUpBack = () => {
   setStep('input');
   setVagueResult(null);
