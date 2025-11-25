@@ -5,8 +5,6 @@ import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
 import EmergencyAlert from './EmergencyAlert';
 import { detectVagueSymptom } from './vagueSymptomDetection';
 import FollowUpQuestions from './FollowUpQuestions';
-import translations from './translations';
-import LanguageToggle from './LanguageToggle';
 
 export default function App() {
   const [step, setStep] = useState('input');
@@ -17,10 +15,6 @@ export default function App() {
   const [isEmergency, setIsEmergency] = useState(false);
   const [vagueResult, setVagueResult] = useState(null);
   const [followUpAnswers, setFollowUpAnswers] = useState(null);
-  const [language, setLanguage] = useState('en'); // 'en' or 'es'
-
-  // Get translations for current language
-  const t = translations[language];
 
   const analyzeSymptoms = async (combinedSymptoms = null) => {
     const symptomsToAnalyze = combinedSymptoms || symptoms;
@@ -30,7 +24,6 @@ export default function App() {
     console.log('symptoms state:', symptoms);
     console.log('symptomsToAnalyze:', symptomsToAnalyze);
     console.log('symptomsToAnalyze length:', symptomsToAnalyze.length);
-    console.log('language:', language);
     
     if (!symptomsToAnalyze.trim()) return;
 
@@ -73,16 +66,13 @@ export default function App() {
     setLoading(true);
     setStep('analyzing');
 
-    // Create language-specific prompt
-    const promptLanguage = language === 'es' ? 'Spanish' : 'English';
     const userMessage = {
       role: "user",
       content: `I need you to act as a medical triage assistant. Analyze these symptoms and determine if the person should go to the Emergency Room, Urgent Care, or can handle this at home.
 
 Symptoms: ${symptomsToAnalyze}
 
-IMPORTANT INSTRUCTIONS:
-- Respond in ${promptLanguage}
+IMPORTANT SAFETY RULES:
 - Be VERY conservative with safety - when in doubt, recommend ER
 - Look for red flags like severe pain, bleeding, breathing issues, chest symptoms
 - Consider ALL information provided including any clarifying details
@@ -92,15 +82,15 @@ Provide your response in the following JSON format ONLY. Do not include any text
 {
   "recommendation": "ER" or "URGENT_CARE" or "HOME_CARE",
   "severity": "Critical" or "Moderate" or "Minor",
-  "reasoning": "Brief explanation of why this recommendation (in ${promptLanguage})",
-  "redFlags": ["list", "of", "concerning", "symptoms (in ${promptLanguage})"],
-  "timeframe": "How quickly they should seek care (in ${promptLanguage})",
+  "reasoning": "Brief explanation of why this recommendation",
+  "redFlags": ["list", "of", "concerning", "symptoms"],
+  "timeframe": "How quickly they should seek care",
   "estimatedCost": {"er": "range", "urgentCare": "range", "homeCare": "range"},
-  "whatToExpect": "What will happen at the recommended facility (in ${promptLanguage})",
-  "alternatives": "When to escalate to higher level of care (in ${promptLanguage})"
+  "whatToExpect": "What will happen at the recommended facility",
+  "alternatives": "When to escalate to higher level of care"
 }
 
-CRITICAL: Your entire response must be valid JSON only, no other text. All text fields must be in ${promptLanguage}.`
+IMPORTANT: Your entire response must be valid JSON only, no other text`
     };
 
     try {
@@ -145,41 +135,19 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
       setStep('results');
     } catch (error) {
       console.error("Error analyzing symptoms:", error);
-      
-      // Error message in current language
-      const errorReasoning = language === 'es' 
-        ? "No se pudieron analizar los síntomas. En caso de duda, llame al 911 o visite la sala de emergencias más cercana."
-        : "Unable to analyze symptoms. When in doubt, please call 911 or visit the nearest Emergency Room.";
-      
-      const errorFlag = language === 'es'
-        ? "No se pudo completar el análisis"
-        : "Unable to complete analysis";
-      
-      const errorTimeframe = language === 'es'
-        ? "Inmediatamente si los síntomas son graves"
-        : "Immediately if symptoms are severe";
-      
-      const errorExpect = language === 'es'
-        ? "Consulte con un profesional médico."
-        : "Please consult with a medical professional.";
-      
-      const errorAlternatives = language === 'es'
-        ? "Llame al 911 para emergencias que ponen en peligro la vida."
-        : "Call 911 for life-threatening emergencies.";
-      
       setResult({
         recommendation: "ER",
         severity: "Unknown",
-        reasoning: errorReasoning,
-        redFlags: [errorFlag],
-        timeframe: errorTimeframe,
+        reasoning: "Unable to analyze symptoms. When in doubt, please call 911 or visit the nearest Emergency Room.",
+        redFlags: ["Unable to complete analysis"],
+        timeframe: "Immediately if symptoms are severe",
         estimatedCost: {
           er: "$1,500 - $3,000",
           urgentCare: "$150 - $300",
           homeCare: "$0 - $50"
         },
-        whatToExpect: errorExpect,
-        alternatives: errorAlternatives
+        whatToExpect: "Please consult with a medical professional.",
+        alternatives: "Call 911 for life-threatening emergencies."
       });
       setStep('results');
     } finally {
@@ -190,11 +158,21 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
   const handleFollowUpComplete = (answers) => {
     setFollowUpAnswers(answers);
     
-    let formattedAnswers = language === 'es' 
-      ? '\n\nDETALLES ADICIONALES DEL PACIENTE:\n'
-      : '\n\nADDITIONAL PATIENT DETAILS:\n';
+    let formattedAnswers = '\n\nADDITIONAL PATIENT DETAILS:\n';
     
-    const labelMap = t.followUp.labels;
+    const labelMap = {
+      location: 'Pain Location',
+      severity: 'Pain Severity (1-10)',
+      rebound: 'Rebound Tenderness',
+      associated: 'Associated Symptoms',
+      duration: 'Duration',
+      onset: 'Onset',
+      type: 'Type',
+      triggers: 'Triggers',
+      radiates: 'Radiates To',
+      temperature: 'Temperature',
+      recent: 'Recent Events'
+    };
     
     for (const [questionId, answer] of Object.entries(answers)) {
       const label = labelMap[questionId] || questionId;
@@ -208,11 +186,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
       }
     }
     
-    const importantNote = language === 'es'
-      ? '\nIMPORTANTE: Analice TODA la información anterior al hacer su recomendación.\n'
-      : '\nIMPORTANT: Please analyze ALL of the above information together when making your recommendation.\n';
-    
-    formattedAnswers += importantNote;
+    formattedAnswers += '\nIMPORTANT: Please analyze ALL of the above information together when making your recommendation.\n';
     
     const combinedSymptoms = symptoms + formattedAnswers;
     
@@ -251,17 +225,11 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
   };
 
   if (isEmergency && result) {
-    return <EmergencyAlert emergencyResult={result} language={language} translations={t.emergencyAlert} />;
+    return <EmergencyAlert emergencyResult={result} />;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Language Toggle */}
-      <LanguageToggle 
-        currentLanguage={language}
-        onLanguageChange={setLanguage}
-      />
-
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center py-8">
@@ -269,13 +237,13 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
             <AlertCircle className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            {t.title}
+            ER or Urgent Care?
           </h1>
           <p className="text-lg text-gray-600">
-            {t.subtitle}
+            Get instant AI-powered guidance on where to seek medical care
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            {t.savingsText}
+            Save thousands by making the right choice
           </p>
         </div>
 
@@ -285,12 +253,12 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
             <div>
               <div className="mb-6">
                 <label className="block text-lg font-semibold text-gray-900 mb-3">
-                  {t.inputLabel}
+                  What symptoms are you experiencing?
                 </label>
                 <textarea
                   value={symptoms}
                   onChange={(e) => setSymptoms(e.target.value)}
-                  placeholder={t.inputPlaceholder}
+                  placeholder="Example: I have severe chest pain that radiates to my left arm, shortness of breath, and I'm sweating..."
                   className="w-full p-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none min-h-32 text-base"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.ctrlKey) {
@@ -299,7 +267,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                   }}
                 />
                 <p className="text-sm text-gray-500 mt-2">
-                  {t.inputHelper}
+                  Be as detailed as possible. Include when symptoms started, severity, and any other relevant information.
                 </p>
               </div>
 
@@ -308,7 +276,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                 disabled={!symptoms.trim()}
                 className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
-                {t.analyzeButton}
+                Analyze My Symptoms
                 <ArrowRight className="w-5 h-5" />
               </button>
 
@@ -318,15 +286,19 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                   <AlertCircle className="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-bold text-red-900 mb-3 text-lg">
-                      {t.emergencyTitle}
+                      🚨 CALL 911 IMMEDIATELY IF YOU HAVE:
                     </p>
                     <ul className="text-red-800 space-y-2 font-semibold">
-                      {t.emergencyItems.map((item, idx) => (
-                        <li key={idx}>• {item}</li>
-                      ))}
+                      <li>• Chest pain or pressure (especially with arm/jaw pain)</li>
+                      <li>• Difficulty breathing or can't catch your breath</li>
+                      <li>• Stroke symptoms (face drooping, arm weakness, slurred speech)</li>
+                      <li>• Loss of consciousness or severe confusion</li>
+                      <li>• Severe bleeding that won't stop</li>
+                      <li>• Suspected poisoning or overdose</li>
+                      <li>• Severe allergic reaction (throat swelling, can't breathe)</li>
                     </ul>
                     <p className="mt-4 text-red-900 font-bold text-base">
-                      {t.emergencyWarning}
+                      ⚠️ DO NOT USE THIS TOOL - CALL 911 NOW
                     </p>
                   </div>
                 </div>
@@ -339,8 +311,6 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
               vagueResult={vagueResult}
               onComplete={handleFollowUpComplete}
               onBack={handleFollowUpBack}
-              language={language}
-              translations={t.followUp}
             />
           )}
 
@@ -348,10 +318,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
               <p className="text-xl font-semibold text-gray-900">
-                {t.analyzing}
+                Analyzing your symptoms...
               </p>
               <p className="text-gray-600 mt-2">
-                {t.analyzingSubtext}
+                Our AI is reviewing your information
               </p>
             </div>
           )}
@@ -364,10 +334,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                   <AlertCircle className={`w-12 h-12 ${getRecommendationIcon(result.recommendation)} flex-shrink-0`} />
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      {t.results.recommendation} {result.recommendation.replace('_', ' ')}
+                      Recommendation: {result.recommendation.replace('_', ' ')}
                     </h2>
                     <p className="text-lg text-gray-700 mb-3">
-                      {t.results.severity} <span className="font-semibold">{result.severity}</span>
+                      Severity: <span className="font-semibold">{result.severity}</span>
                     </p>
                     <p className="text-base text-gray-800 leading-relaxed">
                       {result.reasoning}
@@ -380,7 +350,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
               <div className="bg-blue-50 p-4 rounded-lg mb-6 flex items-center gap-3">
                 <Clock className="w-6 h-6 text-blue-600 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-gray-900">{t.results.timeframe}</p>
+                  <p className="font-semibold text-gray-900">Timeframe:</p>
                   <p className="text-gray-700">{result.timeframe}</p>
                 </div>
               </div>
@@ -390,7 +360,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                 <div className="bg-red-50 p-4 rounded-lg mb-6">
                   <p className="font-semibold text-red-900 mb-2 flex items-center gap-2">
                     <AlertCircle className="w-5 h-5" />
-                    {t.results.warningSignsTitle}
+                    Warning Signs Identified:
                   </p>
                   <ul className="space-y-1">
                     {result.redFlags.map((flag, idx) => (
@@ -405,28 +375,28 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-red-600" />
-                    {t.results.emergencyRoom}
+                    Emergency Room
                   </p>
                   <p className="text-2xl font-bold text-red-600">{result.estimatedCost.er}</p>
-                  <p className="text-sm text-gray-600 mt-1">{t.results.averageCost}</p>
+                  <p className="text-sm text-gray-600 mt-1">Average cost</p>
                 </div>
 
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-yellow-600" />
-                    {t.results.urgentCare}
+                    Urgent Care
                   </p>
                   <p className="text-2xl font-bold text-yellow-600">{result.estimatedCost.urgentCare}</p>
-                  <p className="text-sm text-gray-600 mt-1">{t.results.averageCost}</p>
+                  <p className="text-sm text-gray-600 mt-1">Average cost</p>
                 </div>
 
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-green-600" />
-                    {t.results.homeCare}
+                    Home Care
                   </p>
                   <p className="text-2xl font-bold text-green-600">{result.estimatedCost.homeCare}</p>
-                  <p className="text-sm text-gray-600 mt-1">{t.results.otcTelehealth}</p>
+                  <p className="text-sm text-gray-600 mt-1">OTC/Telehealth</p>
                 </div>
               </div>
 
@@ -434,7 +404,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-blue-600" />
-                  {t.results.whatToExpect}
+                  What to Expect:
                 </p>
                 <p className="text-gray-700">{result.whatToExpect}</p>
               </div>
@@ -444,7 +414,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                 <div className="flex">
                   <div className="ml-3">
                     <p className="text-sm text-yellow-700">
-                      <span className="font-bold">{t.results.importantNote}</span>
+                      <span className="font-bold">Important Note:</span>
                       <br />
                       {result.alternatives}
                     </p>
@@ -461,7 +431,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                   className="bg-green-600 text-white p-4 rounded-lg font-semibold text-center hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <Phone className="w-5 h-5" />
-                  {t.results.talkToDoctor}
+                  Talk to a Doctor Now ($0 with insurance)
                 </a>
                 <a
                   href="https://www.google.com/maps/search/urgent+care+near+me"
@@ -470,7 +440,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                   className="bg-blue-600 text-white p-4 rounded-lg font-semibold text-center hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <MapPin className="w-5 h-5" />
-                  {t.results.findFacility}
+                  Find Nearest Facility
                 </a>
               </div>
 
@@ -480,10 +450,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                   <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
-                  {t.results.productsTitle}
+                  Recommended Health & Safety Products
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  {t.results.productsSubtitle}
+                  Be prepared for emergencies with these essential health monitoring and first aid supplies:
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -498,10 +468,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                       />
                     </div>
                     <div className="p-4">
-                      <h4 className="font-bold text-gray-800 mb-1">{t.results.firstAidKit.title}</h4>
-                      <p className="text-xs text-gray-500 mb-3">{t.results.firstAidKit.subtitle}</p>
+                      <h4 className="font-bold text-gray-800 mb-1">First Aid Kit</h4>
+                      <p className="text-xs text-gray-500 mb-3">OSHA-Compliant • 260 Pieces</p>
                       <p className="text-sm text-gray-600 mb-4">
-                        {t.results.firstAidKit.description}
+                        Complete emergency kit for home, car, and workplace. Be prepared for minor injuries and emergencies.
                       </p>
                       <a 
                         href="https://amzn.to/4iczKz1"
@@ -512,10 +482,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                         onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
                         onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
                       >
-                        {t.results.viewOnAmazon}
+                        View on Amazon →
                       </a>
                       <p className="text-xs text-gray-500 mt-2 text-center">
-                        ⭐⭐⭐⭐⭐ {t.results.firstAidKit.badge}
+                        ⭐⭐⭐⭐⭐ #1 Best Seller
                       </p>
                     </div>
                   </div>
@@ -531,10 +501,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                       />
                     </div>
                     <div className="p-4">
-                      <h4 className="font-bold text-gray-800 mb-1">{t.results.thermometer.title}</h4>
-                      <p className="text-xs text-gray-500 mb-3">{t.results.thermometer.subtitle}</p>
+                      <h4 className="font-bold text-gray-800 mb-1">Digital Thermometer</h4>
+                      <p className="text-xs text-gray-500 mb-3">No-Touch • Forehead & Object</p>
                       <p className="text-sm text-gray-600 mb-4">
-                        {t.results.thermometer.description}
+                        Accurate fever detection for adults and kids. No-contact technology with fever alarm and silent mode.
                       </p>
                       <a 
                         href="https://amzn.to/3X9lmxV"
@@ -545,10 +515,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                         onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
                         onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
                       >
-                        {t.results.viewOnAmazon}
+                        View on Amazon →
                       </a>
                       <p className="text-xs text-gray-500 mt-2 text-center">
-                        ⭐⭐⭐⭐⭐ {t.results.thermometer.badge}
+                        ⭐⭐⭐⭐⭐ Essential for Fevers
                       </p>
                     </div>
                   </div>
@@ -564,10 +534,10 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                       />
                     </div>
                     <div className="p-4">
-                      <h4 className="font-bold text-gray-800 mb-1">{t.results.bloodPressure.title}</h4>
-                      <p className="text-xs text-gray-500 mb-3">{t.results.bloodPressure.subtitle}</p>
+                      <h4 className="font-bold text-gray-800 mb-1">Blood Pressure Monitor</h4>
+                      <p className="text-xs text-gray-500 mb-3">OMRON • #1 Doctor Recommended</p>
                       <p className="text-sm text-gray-600 mb-4">
-                        {t.results.bloodPressure.description}
+                        Clinically validated home monitor. Easy-to-use upper arm cuff for accurate BP readings.
                       </p>
                       <a 
                         href="https://amzn.to/48ev3An"
@@ -578,17 +548,17 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                         onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
                         onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
                       >
-                        {t.results.viewOnAmazon}
+                        View on Amazon →
                       </a>
                       <p className="text-xs text-gray-500 mt-2 text-center">
-                        ⭐⭐⭐⭐⭐ {t.results.bloodPressure.badge}
+                        ⭐⭐⭐⭐⭐ Clinically Validated
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-6 text-center">
-                  <span className="font-semibold">{language === 'es' ? 'Divulgación:' : 'Disclosure:'}</span> {t.results.disclosure}
+                  <span className="font-semibold">Disclosure:</span> As an Amazon Associate, we earn from qualifying purchases. These recommendations help support our free medical guidance tool.
                 </p>
               </div>
 
@@ -597,7 +567,7 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
                 onClick={resetTool}
                 className="w-full bg-gray-200 text-gray-900 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors mt-6"
               >
-                {t.results.newAnalysisButton}
+                Analyze Different Symptoms
               </button>
             </div>
           )}
@@ -605,26 +575,31 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
 
         {/* Disclaimer */}
         <div className="bg-white rounded-lg p-6 mb-6 text-sm text-gray-600">
-          <p className="font-semibold text-gray-900 mb-2">{t.disclaimer.title}</p>
-          <p>{t.disclaimer.text}</p>
+          <p className="font-semibold text-gray-900 mb-2">Medical Disclaimer:</p>
+          <p>
+            This tool provides general guidance only and is not a substitute for professional medical advice, 
+            diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider 
+            with any questions you may have regarding a medical condition. If you think you may have a medical 
+            emergency, call 911 immediately.
+          </p>
         </div>
 
         {/* Stats Section */}
         <div className="bg-white rounded-lg p-6 text-center">
-          <p className="text-3xl font-bold text-blue-600 mb-2">{t.stats.savings}</p>
-          <p className="text-gray-600">{t.stats.savingsText}</p>
+          <p className="text-3xl font-bold text-blue-600 mb-2">$2,345</p>
+          <p className="text-gray-600">Average amount saved by choosing Urgent Care over ER for non-emergencies</p>
           <div className="grid grid-cols-3 gap-4 mt-6">
             <div>
-              <p className="text-2xl font-bold text-gray-900">{t.stats.erVisits}</p>
-              <p className="text-sm text-gray-600">{t.stats.erVisitsText}</p>
+              <p className="text-2xl font-bold text-gray-900">127M</p>
+              <p className="text-sm text-gray-600">Annual ER visits in US</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{t.stats.treatable}</p>
-              <p className="text-sm text-gray-600">{t.stats.treatableText}</p>
+              <p className="text-2xl font-bold text-gray-900">30%</p>
+              <p className="text-sm text-gray-600">Could be treated at Urgent Care</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{t.stats.copay}</p>
-              <p className="text-sm text-gray-600">{t.stats.copayText}</p>
+              <p className="text-2xl font-bold text-gray-900">$1.5K</p>
+              <p className="text-sm text-gray-600">Avg ER copay</p>
             </div>
           </div>
         </div>
@@ -633,26 +608,26 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
         <div className="bg-white rounded-lg p-6 text-center border-t-2 border-gray-200 mt-8">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm">
             <Link to="/about" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.aboutUs}
+              About Us
             </Link>
             <Link to="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.contact}
+              Contact
             </Link>
             <Link to="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.privacy}
+              Privacy Policy
             </Link>
             <Link to="/terms" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.terms}
+              Terms & Conditions
             </Link>
             <Link to="/affiliate-disclosure" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.affiliate}
+              Affiliate Disclosure
             </Link>
           </div>
           <p className="text-gray-600 text-sm">
-            {t.footer.copyright}
+            © 2024 ER vs Urgent Care Tool. Not affiliated with any medical facility.
           </p>
           <p className="text-gray-500 text-xs mt-2">
-            {t.footer.note}
+            This tool provides general information only and is not a substitute for professional medical advice.
           </p>
         </div>
       </div>

@@ -1,70 +1,14 @@
-// FollowUpQuestions.jsx - WITH LANGUAGE SUPPORT
+// FollowUpQuestions.jsx
 // Component for collecting clarifying information about vague symptoms
 
 import React, { useState } from 'react';
 import { AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 
-export default function FollowUpQuestions({ vagueResult, onComplete, onBack, language = 'en', translations }) {
+export default function FollowUpQuestions({ vagueResult, onComplete, onBack }) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const questions = vagueResult.questions;
   const currentQuestion = questions[currentQuestionIndex];
-  
-  // Get translations (fallback to English if not provided)
-  const t = translations || {
-    title: "Let's get more details",
-    subtitle: "These questions will help provide a more accurate recommendation",
-    progress: "Question",
-    of: "of",
-    required: "Required question",
-    nextButton: "Next Question",
-    previousButton: "Previous",
-    startOverButton: "Start Over",
-    getRecommendationButton: "Get Recommendation",
-    selectAll: "Select all that apply"
-  };
-
-  // Get translated question text
-  const getQuestionText = (question) => {
-    if (language === 'es' && translations && translations[vagueResult.category]) {
-      const categoryTranslations = translations[vagueResult.category];
-      const questionTranslation = categoryTranslations[question.id];
-      if (questionTranslation) {
-        return questionTranslation.question;
-      }
-    }
-    return question.question;
-  };
-
-  // Get translated options
-  const getOptions = (question) => {
-    if (language === 'es' && translations && translations[vagueResult.category]) {
-      const categoryTranslations = translations[vagueResult.category];
-      const questionTranslation = categoryTranslations[question.id];
-      if (questionTranslation && questionTranslation.options) {
-        return questionTranslation.options;
-      }
-    }
-    return question.options;
-  };
-
-  // Get translated min/max labels for scale
-  const getScaleLabels = (question) => {
-    if (language === 'es' && translations && translations[vagueResult.category]) {
-      const categoryTranslations = translations[vagueResult.category];
-      const questionTranslation = categoryTranslations[question.id];
-      if (questionTranslation) {
-        return {
-          min: questionTranslation.min || question.minLabel,
-          max: questionTranslation.max || question.maxLabel
-        };
-      }
-    }
-    return {
-      min: question.minLabel,
-      max: question.maxLabel
-    };
-  };
 
   const handleAnswer = (questionId, value) => {
     setAnswers({
@@ -76,21 +20,18 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
   const handleCheckboxChange = (questionId, option, checked) => {
     const currentAnswers = answers[questionId] || [];
     
-    // Handle "None of these" logic (works in both languages)
-    const noneOption = language === 'es' ? 'Ninguno de estos' : 'None of these';
-    if (option === noneOption && checked) {
+    // Handle "None of these" logic
+    if (option === 'None of these' && checked) {
       setAnswers({
         ...answers,
-        [questionId]: [noneOption]
+        [questionId]: ['None of these']
       });
       return;
     }
     
     if (checked) {
       // Remove "None of these" if selecting something else
-      const filteredAnswers = currentAnswers.filter(a => 
-        a !== 'None of these' && a !== 'Ninguno de estos'
-      );
+      const filteredAnswers = currentAnswers.filter(a => a !== 'None of these');
       setAnswers({
         ...answers,
         [questionId]: [...filteredAnswers, option]
@@ -139,10 +80,10 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
           <AlertCircle className="w-6 h-6 text-blue-600" />
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              {t.title}
+              Let's get more details
             </h2>
             <p className="text-sm text-gray-600">
-              {t.subtitle}
+              These questions will help provide a more accurate recommendation
             </p>
           </div>
         </div>
@@ -156,7 +97,7 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
             />
           </div>
           <p className="text-xs text-gray-500 mt-1 text-right">
-            {t.progress} {currentQuestionIndex + 1} {t.of} {questions.length}
+            Question {currentQuestionIndex + 1} of {questions.length}
           </p>
         </div>
       </div>
@@ -164,7 +105,7 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
       {/* Question Card */}
       <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          {getQuestionText(currentQuestion)}
+          {currentQuestion.question}
           {currentQuestion.required && <span className="text-red-600 ml-1">*</span>}
         </h3>
 
@@ -180,11 +121,11 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
               className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">{getScaleLabels(currentQuestion).min}</span>
+              <span className="text-gray-600">{currentQuestion.minLabel}</span>
               <span className="text-2xl font-bold text-blue-600">
                 {answers[currentQuestion.id] || currentQuestion.min}
               </span>
-              <span className="text-gray-600">{getScaleLabels(currentQuestion).max}</span>
+              <span className="text-gray-600">{currentQuestion.maxLabel}</span>
             </div>
           </div>
         )}
@@ -192,7 +133,7 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
         {/* Choice Question */}
         {currentQuestion.type === 'choice' && (
           <div className="space-y-3">
-            {getOptions(currentQuestion).map((option, idx) => (
+            {currentQuestion.options.map((option, idx) => (
               <label
                 key={idx}
                 className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
@@ -218,11 +159,10 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
         {/* Checkbox Question */}
         {currentQuestion.type === 'checkbox' && (
           <div className="space-y-3">
-            {getOptions(currentQuestion).map((option, idx) => {
+            {currentQuestion.options.map((option, idx) => {
               const isChecked = (answers[currentQuestion.id] || []).includes(option);
-              const noneOption = language === 'es' ? 'Ninguno de estos' : 'None of these';
-              const isNoneSelected = (answers[currentQuestion.id] || []).includes(noneOption);
-              const isDisabled = option !== noneOption && isNoneSelected;
+              const isNoneSelected = (answers[currentQuestion.id] || []).includes('None of these');
+              const isDisabled = option !== 'None of these' && isNoneSelected;
               
               return (
                 <label
@@ -247,7 +187,7 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
               );
             })}
             <p className="text-xs text-gray-500 mt-2">
-              {t.selectAll}
+              Select all that apply
             </p>
           </div>
         )}
@@ -261,7 +201,7 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
             className="flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            {t.previousButton}
+            Previous
           </button>
         )}
         
@@ -269,7 +209,7 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
           onClick={onBack}
           className="flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          {t.startOverButton}
+          Start Over
         </button>
 
         <button
@@ -277,14 +217,14 @@ export default function FollowUpQuestions({ vagueResult, onComplete, onBack, lan
           disabled={!canProceed()}
           className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
         >
-          {currentQuestionIndex < questions.length - 1 ? t.nextButton : t.getRecommendationButton}
+          {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Get Recommendation'}
           <ArrowRight className="w-5 h-5" />
         </button>
       </div>
 
       {/* Helper Text */}
       <p className="text-xs text-gray-500 text-center mt-4">
-        <span className="text-red-600">*</span> {t.required}
+        <span className="text-red-600">*</span> Required question
       </p>
     </div>
   );
