@@ -34,102 +34,43 @@ function levenshteinDistance(str1, str2) {
 
 /**
  * Check if two strings are similar enough (fuzzy match)
- * Allows for typos/misspellings BUT prioritizes exact matches
+ * Allows for typos/misspellings
  */
-function isFuzzyMatch(input, pattern) {
-  // EXACT MATCH - highest priority
+function isFuzzyMatch(input, pattern, threshold = 2) {
+  // Exact match - always return true
   if (input.includes(pattern)) {
-    return { match: true, score: 100, exact: true };
+    return true;
   }
 
-  // For very short patterns (< 5 chars), require exact match only
+  // For short patterns (< 5 chars), require exact match
   if (pattern.length < 5) {
-    return { match: false, score: 0, exact: false };
+    return false;
   }
 
-  // For single-word patterns, check direct similarity
-  if (!pattern.includes(' ')) {
-    const inputWords = input.split(' ');
-    
-    for (const iWord of inputWords) {
-      // Skip if word length difference is too big
-      if (Math.abs(iWord.length - pattern.length) > 2) continue;
-      
-      const distance = levenshteinDistance(pattern, iWord);
-      // More forgiving thresholds for common typos
-      let maxAllowed;
-      if (pattern.length <= 4) {
-        maxAllowed = 1;  // 4 chars or less: allow 1 typo
-      } else if (pattern.length <= 6) {
-        maxAllowed = 2;  // 5-6 chars: allow 2 typos (handles "tierd" -> "tired")
-      } else {
-        maxAllowed = 2;  // 7+ chars: allow 2 typos
-      }
-      
-      if (distance <= maxAllowed) {
-        const score = 50 - (distance * 10); // Lower score for fuzzy matches
-        return { match: true, score: score, exact: false };
-      }
-    }
-    return { match: false, score: 0, exact: false };
-  }
-
-  // For multi-word patterns, ALL words must match (exact or fuzzy)
+  // Check if pattern words appear in input with typos
   const patternWords = pattern.split(' ');
   const inputWords = input.split(' ');
-  let totalScore = 0;
-  let matchedWords = 0;
 
   for (const pWord of patternWords) {
-    // Skip very short words (like "in", "of", "to")
-    if (pWord.length < 3) {
-      matchedWords++;
-      continue;
-    }
+    if (pWord.length < 4) continue; // Skip short words
     
-    let wordMatched = false;
+    let found = false;
     for (const iWord of inputWords) {
-      // Check exact match first
-      if (iWord === pWord) {
-        wordMatched = true;
-        totalScore += 10;
-        break;
-      }
-      
-      // Skip if length difference is too large
-      if (Math.abs(iWord.length - pWord.length) > 2) continue;
-      
-      // Check fuzzy match
       const distance = levenshteinDistance(pWord, iWord);
-      // More forgiving for longer words
-      let maxAllowed;
-      if (pWord.length <= 4) {
-        maxAllowed = 1;
-      } else if (pWord.length <= 6) {
-        maxAllowed = 2;
-      } else {
-        maxAllowed = 2;
-      }
+      const maxAllowed = Math.min(threshold, Math.floor(pWord.length / 4));
       
       if (distance <= maxAllowed) {
-        wordMatched = true;
-        totalScore += (5 - distance);
+        found = true;
         break;
       }
     }
     
-    if (wordMatched) {
-      matchedWords++;
+    if (!found && pWord.length > 4) {
+      return false;
     }
   }
 
-  // ALL pattern words must match
-  const allWordsMatched = matchedWords === patternWords.length;
-  return { 
-    match: allWordsMatched, 
-    score: allWordsMatched ? totalScore : 0,
-    exact: false 
-  };
+  return true;
 }
 
 /**
@@ -720,47 +661,22 @@ export function detectVagueSymptom(symptoms) {
   // Normalize symptoms: lowercase, trim, and remove apostrophes
   const symptomsLower = symptoms.toLowerCase().trim().replace(/[''']/g, '');
   
-  let bestMatch = null;
-  let bestScore = 0;
-  
   // Check each vague category with fuzzy matching
   for (const [category, data] of Object.entries(VAGUE_PATTERNS)) {
     for (const pattern of data.patterns) {
       // Normalize the pattern
       const normalizedPattern = pattern.toLowerCase().replace(/[''']/g, '');
       
-      // Try fuzzy match (handles typos) with scoring
-      const matchResult = isFuzzyMatch(symptomsLower, normalizedPattern);
-      
-      if (matchResult.match) {
-        // Prioritize exact matches (score 100) over fuzzy matches
-        if (matchResult.score > bestScore) {
-          bestScore = matchResult.score;
-          bestMatch = {
-            category: category,
-            matchedPattern: pattern,
-            questions: data.questions,
-            exact: matchResult.exact
-          };
-          
-          // If exact match, stop searching (highest priority)
-          if (matchResult.exact) {
-            return {
-              isVague: true,
-              ...bestMatch
-            };
-          }
-        }
+      // Try fuzzy match (handles typos)
+      if (isFuzzyMatch(symptomsLower, normalizedPattern)) {
+        return {
+          isVague: true,
+          category: category,
+          matchedPattern: pattern,
+          questions: data.questions
+        };
       }
     }
-  }
-
-  // Return best match found (if any)
-  if (bestMatch) {
-    return {
-      isVague: true,
-      ...bestMatch
-    };
   }
 
   return { isVague: false };

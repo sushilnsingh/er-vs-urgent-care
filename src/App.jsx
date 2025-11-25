@@ -54,20 +54,41 @@ export default function App() {
     }
 
     // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
-    if (!combinedSymptoms) {
-      const vagueCheck = detectVagueSymptom(symptomsToAnalyze);
-      
-      if (vagueCheck.isVague) {
-        console.log('VAGUE SYMPTOM DETECTED:', {
-          category: vagueCheck.category,
-          pattern: vagueCheck.matchedPattern
-        });
-        
-        setVagueResult(vagueCheck);
-        setStep('followup');
-        return;
-      }
-    }
+ // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
+if (!combinedSymptoms) {
+  const vagueCheck = detectVagueSymptom(symptomsToAnalyze);
+  
+  // Check for invalid input first (like "111111" or "asdfgh")
+  if (vagueCheck.invalidInput) {
+    setResult({
+      recommendation: "INVALID_INPUT",
+      severity: "N/A",
+      reasoning: vagueCheck.message || "Please describe your symptoms in words. For example: 'headache', 'stomach pain', 'feeling tired', etc.",
+      redFlags: [],
+      timeframe: "Please provide valid symptoms",
+      estimatedCost: {
+        er: "N/A",
+        urgentCare: "N/A",
+        homeCare: "N/A"
+      },
+      whatToExpect: "This tool helps you decide where to seek care based on your symptoms. Please describe what you're experiencing in your own words.",
+      alternatives: "Try describing your symptoms like: 'I have a headache', 'My stomach hurts', 'I feel tired', 'I can't sleep', etc."
+    });
+    setStep('results');
+    return;
+  }
+  
+  if (vagueCheck.isVague) {
+    console.log('VAGUE SYMPTOM DETECTED:', {
+      category: vagueCheck.category,
+      pattern: vagueCheck.matchedPattern
+    });
+    
+    setVagueResult(vagueCheck);
+    setStep('followup');
+    return;
+  }
+}
 
     // NOT emergency, NOT vague - proceed with AI
     setLoading(true);
@@ -229,11 +250,12 @@ CRITICAL: Your entire response must be valid JSON only, no other text. All text 
     setFollowUpAnswers(null);
   };
 
-  const getRecommendationColor = (rec) => {
-    if (rec === 'ER' || rec === 'EMERGENCY_911') return 'bg-red-50 border-red-300';
-    if (rec === 'URGENT_CARE') return 'bg-yellow-50 border-yellow-300';
-    return 'bg-green-50 border-green-300';
-  };
+ const getRecommendationColor = (rec) => {
+  if (rec === 'ER' || rec === 'EMERGENCY_911') return 'bg-red-50 border-red-300';
+  if (rec === 'URGENT_CARE') return 'bg-yellow-50 border-yellow-300';
+  if (rec === 'INVALID_INPUT') return 'bg-gray-50 border-gray-300';
+  return 'bg-green-50 border-green-300';
+};
 
   const getRecommendationIcon = (rec) => {
     if (rec === 'ER' || rec === 'EMERGENCY_911') return 'text-red-600';

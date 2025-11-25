@@ -56,15 +56,7 @@ function isFuzzyMatch(input, pattern) {
       if (Math.abs(iWord.length - pattern.length) > 2) continue;
       
       const distance = levenshteinDistance(pattern, iWord);
-      // More forgiving thresholds for common typos
-      let maxAllowed;
-      if (pattern.length <= 4) {
-        maxAllowed = 1;  // 4 chars or less: allow 1 typo
-      } else if (pattern.length <= 6) {
-        maxAllowed = 2;  // 5-6 chars: allow 2 typos (handles "tierd" -> "tired")
-      } else {
-        maxAllowed = 2;  // 7+ chars: allow 2 typos
-      }
+      const maxAllowed = pattern.length <= 6 ? 1 : 2; // Stricter for short words
       
       if (distance <= maxAllowed) {
         const score = 50 - (distance * 10); // Lower score for fuzzy matches
@@ -101,15 +93,7 @@ function isFuzzyMatch(input, pattern) {
       
       // Check fuzzy match
       const distance = levenshteinDistance(pWord, iWord);
-      // More forgiving for longer words
-      let maxAllowed;
-      if (pWord.length <= 4) {
-        maxAllowed = 1;
-      } else if (pWord.length <= 6) {
-        maxAllowed = 2;
-      } else {
-        maxAllowed = 2;
-      }
+      const maxAllowed = pWord.length <= 6 ? 1 : 2;
       
       if (distance <= maxAllowed) {
         wordMatched = true;
