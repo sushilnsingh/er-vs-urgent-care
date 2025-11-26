@@ -696,6 +696,238 @@ const VAGUE_PATTERNS = {
         required: false
       }
     ]
+  },
+
+  // FEVER/CHILLS
+  fever: {
+    patterns: [
+      'fever', 'chills', 'fiebre', 'escalofrios', 'hot and cold',
+      'running a fever', 'temperature', 'feeling feverish', 'shaking chills'
+    ],
+    questions: [
+      {
+        id: 'temperature',
+        type: 'choice',
+        question: 'What is your temperature?',
+        options: [
+          'Below 100.4°F (38°C)',
+          '100.4-102°F (38-39°C)',
+          '102-104°F (39-40°C)',
+          'Above 104°F (40°C)',
+          "Haven't measured"
+        ],
+        required: true
+      },
+      {
+        id: 'duration',
+        type: 'choice',
+        question: 'How long have you had fever/chills?',
+        options: [
+          'Less than 24 hours',
+          '1-3 days',
+          '4-7 days',
+          'More than a week'
+        ],
+        required: true
+      },
+      {
+        id: 'other_symptoms',
+        type: 'checkbox',
+        question: 'What other symptoms do you have?',
+        options: [
+          'Cough',
+          'Sore throat',
+          'Body aches',
+          'Headache',
+          'Nausea/vomiting',
+          'Diarrhea',
+          'Rash',
+          'Confusion',
+          'None of these'
+        ],
+        required: true
+      },
+      {
+        id: 'severity',
+        type: 'scale',
+        question: 'How sick do you feel overall?',
+        min: 1,
+        max: 10,
+        minLabel: 'Mild discomfort',
+        maxLabel: 'Very sick',
+        required: true
+      },
+      {
+        id: 'exposure',
+        type: 'checkbox',
+        question: 'Any recent exposure or travel?',
+        options: [
+          'Traveled recently',
+          'Been around sick people',
+          'Insect/tick bite',
+          'Started new medication',
+          'None of these'
+        ],
+        required: false
+      }
+    ]
+  },
+
+  // NAUSEA
+  nausea: {
+    patterns: [
+      'nausea', 'nauseous', 'feel sick', 'want to throw up', 'vomit',
+      'vomiting', 'throwing up', 'upset stomach', 'queasy', 'náuseas'
+    ],
+    questions: [
+      {
+        id: 'vomiting',
+        type: 'choice',
+        question: 'Are you vomiting?',
+        options: [
+          'No, just nauseous',
+          'Yes, once or twice',
+          'Yes, multiple times',
+          'Yes, cannot keep anything down'
+        ],
+        required: true
+      },
+      {
+        id: 'duration',
+        type: 'choice',
+        question: 'How long has this been happening?',
+        options: [
+          'Less than 6 hours',
+          '6-24 hours',
+          '1-3 days',
+          'More than 3 days'
+        ],
+        required: true
+      },
+      {
+        id: 'associated',
+        type: 'checkbox',
+        question: 'What other symptoms do you have?',
+        options: [
+          'Abdominal pain',
+          'Diarrhea',
+          'Fever',
+          'Headache',
+          'Dizziness',
+          'Blood in vomit',
+          'Chest pain',
+          'None of these'
+        ],
+        required: true
+      },
+      {
+        id: 'triggers',
+        type: 'checkbox',
+        question: 'When does it happen?',
+        options: [
+          'After eating',
+          'In the morning',
+          'All the time',
+          'With certain foods',
+          'When moving/standing',
+          'No clear pattern'
+        ],
+        required: true
+      },
+      {
+        id: 'recent',
+        type: 'checkbox',
+        question: 'Any of these apply?',
+        options: [
+          'Pregnant or could be pregnant',
+          'Recently ate questionable food',
+          'Others around me are sick',
+          'Started new medication',
+          'Had head injury recently',
+          'None of these'
+        ],
+        required: false
+      }
+    ]
+  },
+
+  // SKIN/RASH
+  skin: {
+    patterns: [
+      'rash', 'skin rash', 'itchy skin', 'skin irritation', 'hives',
+      'red skin', 'bumps on skin', 'skin problem', 'piel', 'sarpullido'
+    ],
+    questions: [
+      {
+        id: 'appearance',
+        type: 'checkbox',
+        question: 'What does the rash look like?',
+        options: [
+          'Red spots or patches',
+          'Raised bumps',
+          'Blisters',
+          'Flat and red',
+          'Scaly or flaky',
+          'Looks like a burn'
+        ],
+        required: true
+      },
+      {
+        id: 'location',
+        type: 'checkbox',
+        question: 'Where is the rash?',
+        options: [
+          'Face',
+          'Arms/hands',
+          'Legs/feet',
+          'Trunk/torso',
+          'All over body',
+          'Just one small area'
+        ],
+        required: true
+      },
+      {
+        id: 'symptoms',
+        type: 'checkbox',
+        question: 'How does it feel?',
+        options: [
+          'Very itchy',
+          'Painful',
+          'Burning sensation',
+          'No discomfort',
+          'Swollen',
+          'Warm to touch'
+        ],
+        required: true
+      },
+      {
+        id: 'onset',
+        type: 'choice',
+        question: 'When did it start?',
+        options: [
+          'Within past few hours',
+          'Yesterday',
+          '2-7 days ago',
+          'More than a week ago'
+        ],
+        required: true
+      },
+      {
+        id: 'triggers',
+        type: 'checkbox',
+        question: 'Any possible triggers?',
+        options: [
+          'New soap/detergent/cosmetic',
+          'New medication',
+          'Insect bite',
+          'Sun exposure',
+          'Contact with plants',
+          'Fever or feeling sick',
+          'None/Unknown'
+        ],
+        required: false
+      }
+    ]
   }
 };
 

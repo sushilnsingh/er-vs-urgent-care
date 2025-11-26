@@ -1,683 +1,555 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { AlertCircle, Clock, DollarSign, MapPin, Phone, CheckCircle, ArrowRight } from 'lucide-react';
-import { detectEmergency, generateEmergencyResult } from './emergencyDetection';
-import EmergencyAlert from './EmergencyAlert';
-import { detectVagueSymptom } from './vagueSymptomDetection';
-import FollowUpQuestions from './FollowUpQuestions';
-import translations from './translations';
-import LanguageToggle from './LanguageToggle';
+// App.jsx
+// Complete ER vs Urgent Care tool with Visual Body Diagram
 
-export default function App() {
-  const [step, setStep] = useState('input');
+import { useState } from 'react';
+import BodyDiagram from './components/BodyDiagram';
+import { detectVagueSymptom, formatFollowUpAnswers } from './vagueSymptomDetection';
+import { detect911Emergency } from './emergencyDetection';
+import { translations } from './translations';
+
+function App() {
+  const [step, setStep] = useState('input'); // 'input', 'visual', 'followup', 'analyzing', 'results'
   const [symptoms, setSymptoms] = useState('');
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [conversationHistory, setConversationHistory] = useState([]);
-  const [isEmergency, setIsEmergency] = useState(false);
+  const [language, setLanguage] = useState('en');
   const [vagueResult, setVagueResult] = useState(null);
-  const [followUpAnswers, setFollowUpAnswers] = useState(null);
-  const [language, setLanguage] = useState('en'); // 'en' or 'es'
+  const [followUpAnswers, setFollowUpAnswers] = useState({});
+  
+  // Visual picker state
+  const [useVisualPicker, setUseVisualPicker] = useState(true);
+  const [selectedBodyRegions, setSelectedBodyRegions] = useState([]);
+  const [showTextInput, setShowTextInput] = useState(false);
 
-  // Get translations for current language
   const t = translations[language];
 
-  const analyzeSymptoms = async (combinedSymptoms = null) => {
-    const symptomsToAnalyze = combinedSymptoms || symptoms;
+  // Analyze symptoms from visual selection
+  const analyzeFromVisualSelection = async () => {
+    if (selectedBodyRegions.length === 0) return;
     
-    console.log('=== ANALYZE SYMPTOMS CALLED ===');
-    console.log('combinedSymptoms param:', combinedSymptoms);
-    console.log('symptoms state:', symptoms);
-    console.log('symptomsToAnalyze:', symptomsToAnalyze);
-    console.log('symptomsToAnalyze length:', symptomsToAnalyze.length);
-    console.log('language:', language);
+    // Get all unique symptoms from selected regions
+    const allSymptoms = selectedBodyRegions
+      .flatMap(region => region.symptoms)
+      .filter((symptom, index, self) => self.indexOf(symptom) === index);
     
-    if (!symptomsToAnalyze.trim()) return;
+    // Map symptom categories to text that will trigger vague detection
+    const symptomCategoryMap = {
+      'fatigue': 'tired all the time',
+      'fever': 'fever and chills',
+      'anxiety': 'feeling anxious',
+      'sleep': 'trouble sleeping',
+      'nausea': 'nausea and vomiting',
+      'skin': 'skin rash',
+      'headache': 'headache',
+      'chest': 'chest pain',
+      'breathing': 'shortness of breath',
+      'abdominal': 'stomach pain',
+      'back': 'back pain',
+      'joint': 'joint pain',
+      'numbness': 'numbness and tingling',
+      'urinary': 'urinary problems',
+      'dizziness': 'dizziness'
+    };
+    
+    // Priority: if only one symptom category, trigger vague detection with mapped text
+    if (allSymptoms.length === 1) {
+      const symptomCategory = allSymptoms[0];
+      const mappedText = symptomCategoryMap[symptomCategory] || symptomCategory;
+      
+      // Trigger follow-up questions using the mapped text
+      const vagueCheck = detectVagueSymptom(mappedText);
+      
+      if (vagueCheck.isVague) {
+        setSymptoms(mappedText);
+        setVagueResult(vagueCheck);
+        setStep('followup');
+        return;
+      }
+    }
+    
+    // Create a descriptive symptom text from region names for Claude
+    const symptomDescription = selectedBodyRegions
+      .map(r => {
+        const name = r.name.toLowerCase();
+        // Use the mapped descriptions
+        if (name.includes('fatigue') || name.includes('tired')) return 'feeling very tired and fatigued';
+        if (name.includes('fever') || name.includes('chills') || name.includes('fiebre')) return 'fever and chills';
+        if (name.includes('anxiety') || name.includes('stress') || name.includes('ansiedad')) return 'feeling anxious and stressed';
+        if (name.includes('sleep') || name.includes('sueño')) return 'having trouble sleeping';
+        if (name.includes('nausea') || name.includes('náuseas')) return 'nausea and feeling sick';
+        if (name.includes('skin') || name.includes('rash') || name.includes('piel')) return 'skin rash or irritation';
+        // Default for body parts
+        return `pain in ${name}`;
+      })
+      .join(', ');
+    
+    setSymptoms(symptomDescription);
+    setStep('analyzing');
+    
+    // Continue with normal Claude analysis
+    setTimeout(() => {
+      analyzeSymptoms(symptomDescription);
+    }, 100);
+  };
 
-    // 🚨 EMERGENCY DETECTION FIRST
-    const emergencyCheck = detectEmergency(symptomsToAnalyze);
+  // Main analysis function
+  const analyzeSymptoms = async (symptomsToAnalyze = null) => {
+    const symptomsText = symptomsToAnalyze || symptoms;
     
-    if (emergencyCheck.isEmergency) {
-      const emergencyResult = generateEmergencyResult(emergencyCheck);
-      setResult(emergencyResult);
-      setIsEmergency(true);
-      setStep('emergency');
-      
-      console.log('EMERGENCY DETECTED:', {
-        timestamp: new Date().toISOString(),
-        symptoms: symptomsToAnalyze,
-        category: emergencyCheck.category,
-        pattern: emergencyCheck.matchedPattern
-      });
-      
+    if (!symptomsText.trim()) {
+      alert('Please describe your symptoms');
       return;
     }
 
-    // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
- // 🤔 CHECK FOR VAGUE SYMPTOMS (only if no follow-up answers yet)
-if (!combinedSymptoms) {
-  const vagueCheck = detectVagueSymptom(symptomsToAnalyze);
-  
-  // Check for invalid input first (like "111111" or "asdfgh")
-  if (vagueCheck.invalidInput) {
-    setResult({
-      recommendation: "INVALID_INPUT",
-      severity: "N/A",
-      reasoning: vagueCheck.message || "Please describe your symptoms in words. For example: 'headache', 'stomach pain', 'feeling tired', etc.",
-      redFlags: [],
-      timeframe: "Please provide valid symptoms",
-      estimatedCost: {
-        er: "N/A",
-        urgentCare: "N/A",
-        homeCare: "N/A"
-      },
-      whatToExpect: "This tool helps you decide where to seek care based on your symptoms. Please describe what you're experiencing in your own words.",
-      alternatives: "Try describing your symptoms like: 'I have a headache', 'My stomach hurts', 'I feel tired', 'I can't sleep', etc."
-    });
-    setStep('results');
-    return;
-  }
-  
-  if (vagueCheck.isVague) {
-    console.log('VAGUE SYMPTOM DETECTED:', {
-      category: vagueCheck.category,
-      pattern: vagueCheck.matchedPattern
-    });
-    
-    setVagueResult(vagueCheck);
-    setStep('followup');
-    return;
-  }
-}
-
-    // NOT emergency, NOT vague - proceed with AI
-    setLoading(true);
     setStep('analyzing');
 
-    // Create language-specific prompt
-    const promptLanguage = language === 'es' ? 'Spanish' : 'English';
-    const userMessage = {
-      role: "user",
-      content: `I need you to act as a medical triage assistant. Analyze these symptoms and determine if the person should go to the Emergency Room, Urgent Care, or can handle this at home.
+    // Check for 911 emergencies first
+    const emergencyCheck = detect911Emergency(symptomsText);
+    if (emergencyCheck.isEmergency) {
+      setResult({
+        recommendation: 'EMERGENCY_911',
+        severity: 'Critical',
+        reasoning: emergencyCheck.reasoning,
+        redFlags: emergencyCheck.patterns,
+        timeframe: 'CALL 911 IMMEDIATELY',
+        emergencyType: emergencyCheck.category
+      });
+      setStep('results');
+      return;
+    }
 
-Symptoms: ${symptomsToAnalyze}
+    // Combine follow-up answers if available
+    let combinedSymptoms = symptomsText;
+    if (Object.keys(followUpAnswers).length > 0) {
+      combinedSymptoms = symptomsText + formatFollowUpAnswers(followUpAnswers);
+    }
 
-IMPORTANT INSTRUCTIONS:
-- Respond in ${promptLanguage}
-- Be VERY conservative with safety - when in doubt, recommend ER
-- Look for red flags like severe pain, bleeding, breathing issues, chest symptoms
-- Consider ALL information provided including any clarifying details
-- NEVER downplay potentially serious symptoms
+    // Check for vague symptoms (only if no follow-up answers yet)
+    if (!symptomsToAnalyze && Object.keys(followUpAnswers).length === 0) {
+      const vagueCheck = detectVagueSymptom(symptomsText);
+      
+      // Check for invalid input first
+      if (vagueCheck.invalidInput) {
+        setResult({
+          recommendation: "INVALID_INPUT",
+          severity: "N/A",
+          reasoning: vagueCheck.message || "Please describe your symptoms in words. For example: 'headache', 'stomach pain', 'feeling tired', etc.",
+          redFlags: [],
+          timeframe: "Please provide valid symptoms",
+          estimatedCost: {
+            er: "N/A",
+            urgentCare: "N/A",
+            homeCare: "N/A"
+          },
+          whatToExpect: "This tool helps you decide where to seek care based on your symptoms. Please describe what you're experiencing in your own words.",
+          alternatives: "Try describing your symptoms like: 'I have a headache', 'My stomach hurts', 'I feel tired', 'I can't sleep', etc."
+        });
+        setStep('results');
+        return;
+      }
+      
+      if (vagueCheck.isVague) {
+        console.log('VAGUE SYMPTOM DETECTED:', {
+          category: vagueCheck.category,
+          pattern: vagueCheck.matchedPattern
+        });
+        
+        setVagueResult(vagueCheck);
+        setStep('followup');
+        return;
+      }
+    }
 
-Provide your response in the following JSON format ONLY. Do not include any text outside the JSON:
-{
-  "recommendation": "ER" or "URGENT_CARE" or "HOME_CARE",
-  "severity": "Critical" or "Moderate" or "Minor",
-  "reasoning": "Brief explanation of why this recommendation (in ${promptLanguage})",
-  "redFlags": ["list", "of", "concerning", "symptoms (in ${promptLanguage})"],
-  "timeframe": "How quickly they should seek care (in ${promptLanguage})",
-  "estimatedCost": {"er": "range", "urgentCare": "range", "homeCare": "range"},
-  "whatToExpect": "What will happen at the recommended facility (in ${promptLanguage})",
-  "alternatives": "When to escalate to higher level of care (in ${promptLanguage})"
-}
-
-CRITICAL: Your entire response must be valid JSON only, no other text. All text fields must be in ${promptLanguage}.`
-    };
-
+    // Call Claude API
     try {
-      const response = await fetch("/api/analyze", {
-        method: "POST",
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...conversationHistory, userMessage]
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'user',
+              content: `You are a medical triage assistant. Based on these symptoms, recommend whether the person should go to the ER, Urgent Care, or can treat at home.
+
+Symptoms: ${combinedSymptoms}
+
+Respond in this EXACT JSON format (no markdown, no backticks, just raw JSON):
+{
+  "recommendation": "ER" or "URGENT_CARE" or "HOME_CARE",
+  "severity": "Critical" or "Moderate" or "Mild",
+  "reasoning": "Brief explanation",
+  "redFlags": ["list", "of", "warning", "signs"],
+  "timeframe": "When to seek care",
+  "estimatedCost": {
+    "er": "$X,XXX-$X,XXX",
+    "urgentCare": "$XXX-$XXX",
+    "homeCare": "$XX-$XXX"
+  },
+  "whatToExpect": "What happens at recommended facility",
+  "alternatives": "Other options to consider"
+}
+
+IMPORTANT: Output ONLY valid JSON, no other text.`
+            }
+          ]
         })
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const text = await response.text();
-      console.log('Response text:', text);
-
-      if (!text) {
-        throw new Error('Empty response from API');
-      }
-
-      const data = JSON.parse(text);
-      console.log('Parsed data:', data);
-      
+      const data = await response.json();
       let responseText = data.content[0].text;
       
-      responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      // Strip markdown code blocks if present
+      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       
       const analysis = JSON.parse(responseText);
-      
       setResult(analysis);
-      setConversationHistory([...conversationHistory, userMessage, {
-        role: "assistant",
-        content: responseText
-      }]);
       setStep('results');
+      
     } catch (error) {
-      console.error("Error analyzing symptoms:", error);
-      
-      // Error message in current language
-      const errorReasoning = language === 'es' 
-        ? "No se pudieron analizar los síntomas. En caso de duda, llame al 911 o visite la sala de emergencias más cercana."
-        : "Unable to analyze symptoms. When in doubt, please call 911 or visit the nearest Emergency Room.";
-      
-      const errorFlag = language === 'es'
-        ? "No se pudo completar el análisis"
-        : "Unable to complete analysis";
-      
-      const errorTimeframe = language === 'es'
-        ? "Inmediatamente si los síntomas son graves"
-        : "Immediately if symptoms are severe";
-      
-      const errorExpect = language === 'es'
-        ? "Consulte con un profesional médico."
-        : "Please consult with a medical professional.";
-      
-      const errorAlternatives = language === 'es'
-        ? "Llame al 911 para emergencias que ponen en peligro la vida."
-        : "Call 911 for life-threatening emergencies.";
-      
+      console.error('Error:', error);
       setResult({
-        recommendation: "ER",
-        severity: "Unknown",
-        reasoning: errorReasoning,
-        redFlags: [errorFlag],
-        timeframe: errorTimeframe,
-        estimatedCost: {
-          er: "$1,500 - $3,000",
-          urgentCare: "$150 - $300",
-          homeCare: "$0 - $50"
-        },
-        whatToExpect: errorExpect,
-        alternatives: errorAlternatives
+        recommendation: 'ER',
+        severity: 'Unknown',
+        reasoning: 'Unable to analyze symptoms. When in doubt, please call 911 or visit the nearest Emergency Room.',
+        redFlags: ['Unable to complete analysis'],
+        timeframe: 'Immediately if symptoms are severe'
       });
       setStep('results');
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleFollowUpComplete = (answers) => {
-    setFollowUpAnswers(answers);
-    
-    let formattedAnswers = language === 'es' 
-      ? '\n\nDETALLES ADICIONALES DEL PACIENTE:\n'
-      : '\n\nADDITIONAL PATIENT DETAILS:\n';
-    
-    const labelMap = t.followUp.labels;
-    
-    for (const [questionId, answer] of Object.entries(answers)) {
-      const label = labelMap[questionId] || questionId;
-      
-      if (Array.isArray(answer)) {
-        if (answer.length > 0) {
-          formattedAnswers += `- ${label}: ${answer.join(', ')}\n`;
-        }
-      } else {
-        formattedAnswers += `- ${label}: ${answer}\n`;
-      }
-    }
-    
-    const importantNote = language === 'es'
-      ? '\nIMPORTANTE: Analice TODA la información anterior al hacer su recomendación.\n'
-      : '\nIMPORTANT: Please analyze ALL of the above information together when making your recommendation.\n';
-    
-    formattedAnswers += importantNote;
-    
-    const combinedSymptoms = symptoms + formattedAnswers;
-    
-    console.log('FOLLOW-UP ANSWERS:', answers);
-    console.log('FORMATTED TEXT:', formattedAnswers);
-    console.log('COMBINED SYMPTOMS:', combinedSymptoms);
-    
-    analyzeSymptoms(combinedSymptoms);
+  // Handle follow-up question answers
+  const handleFollowUpSubmit = () => {
+    setStep('analyzing');
+    analyzeSymptoms();
   };
 
-  const handleFollowUpBack = () => {
-    setStep('input');
-    setVagueResult(null);
-    setFollowUpAnswers(null);
-  };
-
- const getRecommendationColor = (rec) => {
-  if (rec === 'ER' || rec === 'EMERGENCY_911') return 'bg-red-50 border-red-300';
-  if (rec === 'URGENT_CARE') return 'bg-yellow-50 border-yellow-300';
-  if (rec === 'INVALID_INPUT') return 'bg-gray-50 border-gray-300';
-  return 'bg-green-50 border-green-300';
-};
-
-  const getRecommendationIcon = (rec) => {
-    if (rec === 'ER' || rec === 'EMERGENCY_911') return 'text-red-600';
-    if (rec === 'URGENT_CARE') return 'text-yellow-600';
-    return 'text-green-600';
-  };
-
-  const resetTool = () => {
+  // Reset and start over
+  const resetApp = () => {
     setStep('input');
     setSymptoms('');
     setResult(null);
-    setIsEmergency(false);
     setVagueResult(null);
-    setFollowUpAnswers(null);
+    setFollowUpAnswers({});
+    setSelectedBodyRegions([]);
+    setShowTextInput(false);
   };
 
-  if (isEmergency && result) {
-    return <EmergencyAlert emergencyResult={result} language={language} translations={t.emergencyAlert} />;
-  }
+  const getRecommendationColor = (rec) => {
+    if (rec === 'ER' || rec === 'EMERGENCY_911') return 'bg-red-50 border-red-300';
+    if (rec === 'URGENT_CARE') return 'bg-yellow-50 border-yellow-300';
+    if (rec === 'INVALID_INPUT') return 'bg-gray-50 border-gray-300';
+    return 'bg-green-50 border-green-300';
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Language Toggle */}
-      <LanguageToggle 
-        currentLanguage={language}
-        onLanguageChange={setLanguage}
-      />
-
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center py-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <AlertCircle className="w-8 h-8 text-white" />
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {t.title}
+              </h1>
+              <p className="text-gray-600">{t.subtitle}</p>
+            </div>
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'es' : 'en')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {language === 'en' ? '🇪🇸 Español' : '🇺🇸 English'}
+            </button>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            {t.title}
-          </h1>
-          <p className="text-lg text-gray-600">
-            {t.subtitle}
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            {t.savingsText}
-          </p>
         </div>
 
-        {/* Main Content */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-          {step === 'input' && (
-            <div>
-              <div className="mb-6">
-                <label className="block text-lg font-semibold text-gray-900 mb-3">
-                  {t.inputLabel}
-                </label>
-                <textarea
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                  placeholder={t.inputPlaceholder}
-                  className="w-full p-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none min-h-32 text-base"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.ctrlKey) {
-                      analyzeSymptoms();
-                    }
-                  }}
-                />
-                <p className="text-sm text-gray-500 mt-2">
-                  {t.inputHelper}
-                </p>
-              </div>
+        {/* VISUAL SYMPTOM PICKER */}
+        {step === 'input' && useVisualPicker && !showTextInput && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <BodyDiagram
+              selectedRegions={selectedBodyRegions}
+              onRegionSelect={setSelectedBodyRegions}
+              language={language}
+            />
+            
+            {/* Action Buttons */}
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+              {selectedBodyRegions.length > 0 && (
+                <button
+                  onClick={analyzeFromVisualSelection}
+                  className="px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  {language === 'es' 
+                    ? `Continuar con ${selectedBodyRegions.length} área${selectedBodyRegions.length > 1 ? 's' : ''} seleccionada${selectedBodyRegions.length > 1 ? 's' : ''} →`
+                    : `Continue with ${selectedBodyRegions.length} selected area${selectedBodyRegions.length > 1 ? 's' : ''} →`
+                  }
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowTextInput(true)}
+                className="px-8 py-4 bg-white text-gray-700 rounded-xl font-semibold text-lg border-2 border-gray-300 hover:border-gray-400 transition-all"
+              >
+                {language === 'es' ? '✍️ Describir síntomas en su lugar' : '✍️ Describe symptoms instead'}
+              </button>
+            </div>
+          </div>
+        )}
 
+        {/* TEXT SYMPTOM INPUT */}
+        {step === 'input' && (!useVisualPicker || showTextInput) && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              {t.inputPrompt}
+            </h2>
+            
+            <textarea
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+              placeholder={t.placeholder}
+              className="w-full p-4 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none min-h-[150px] text-lg"
+            />
+
+            <div className="mt-6 flex gap-4">
               <button
                 onClick={() => analyzeSymptoms()}
                 disabled={!symptoms.trim()}
-                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
               >
                 {t.analyzeButton}
-                <ArrowRight className="w-5 h-5" />
               </button>
+            </div>
 
-              {/* Emergency Warning - Enhanced */}
-              <div className="mt-6 p-6 bg-red-50 border-4 border-red-600 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-bold text-red-900 mb-3 text-lg">
-                      {t.emergencyTitle}
-                    </p>
-                    <ul className="text-red-800 space-y-2 font-semibold">
-                      {t.emergencyItems.map((item, idx) => (
-                        <li key={idx}>• {item}</li>
+            {/* Back to visual picker option */}
+            {showTextInput && (
+              <div className="text-center mt-4">
+                <button
+                  onClick={() => setShowTextInput(false)}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  ← Back to visual picker
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* FOLLOW-UP QUESTIONS */}
+        {step === 'followup' && vagueResult && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              A few quick questions to help us understand better:
+            </h2>
+
+            <div className="space-y-6">
+              {vagueResult.questions.map((question, index) => (
+                <div key={question.id} className="border-b border-gray-200 pb-6">
+                  <label className="block text-lg font-semibold text-gray-800 mb-3">
+                    {index + 1}. {question.question}
+                    {question.required && <span className="text-red-500 ml-1">*</span>}
+                  </label>
+
+                  {question.type === 'choice' && (
+                    <select
+                      value={followUpAnswers[question.id] || ''}
+                      onChange={(e) => setFollowUpAnswers({
+                        ...followUpAnswers,
+                        [question.id]: e.target.value
+                      })}
+                      className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Select an option...</option>
+                      {question.options.map(option => (
+                        <option key={option} value={option}>{option}</option>
                       ))}
-                    </ul>
-                    <p className="mt-4 text-red-900 font-bold text-base">
-                      {t.emergencyWarning}
-                    </p>
+                    </select>
+                  )}
+
+                  {question.type === 'scale' && (
+                    <div className="space-y-2">
+                      <input
+                        type="range"
+                        min={question.min}
+                        max={question.max}
+                        value={followUpAnswers[question.id] || question.min}
+                        onChange={(e) => setFollowUpAnswers({
+                          ...followUpAnswers,
+                          [question.id]: e.target.value
+                        })}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>{question.minLabel}</span>
+                        <span className="font-bold text-lg text-blue-600">
+                          {followUpAnswers[question.id] || question.min}
+                        </span>
+                        <span>{question.maxLabel}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {question.type === 'checkbox' && (
+                    <div className="space-y-2">
+                      {question.options.map(option => (
+                        <label key={option} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(followUpAnswers[question.id] || []).includes(option)}
+                            onChange={(e) => {
+                              const current = followUpAnswers[question.id] || [];
+                              const updated = e.target.checked
+                                ? [...current, option]
+                                : current.filter(item => item !== option);
+                              setFollowUpAnswers({
+                                ...followUpAnswers,
+                                [question.id]: updated
+                              });
+                            }}
+                            className="w-5 h-5 text-blue-600 rounded"
+                          />
+                          <span className="text-gray-700">{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex gap-4">
+              <button
+                onClick={handleFollowUpSubmit}
+                className="flex-1 px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                Get Recommendation →
+              </button>
+              <button
+                onClick={resetApp}
+                className="px-6 py-4 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-all"
+              >
+                Start Over
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ANALYZING */}
+        {step === 'analyzing' && (
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-xl text-gray-700">Analyzing your symptoms...</p>
+          </div>
+        )}
+
+        {/* RESULTS */}
+        {step === 'results' && result && (
+          <div className={`rounded-2xl shadow-xl p-8 border-4 ${getRecommendationColor(result.recommendation)}`}>
+            {/* 911 Emergency Alert */}
+            {result.recommendation === 'EMERGENCY_911' && (
+              <div className="bg-red-600 text-white p-6 rounded-xl mb-6 animate-pulse">
+                <div className="flex items-center gap-4">
+                  <div className="text-6xl">🚨</div>
+                  <div>
+                    <h2 className="text-3xl font-bold">CALL 911 IMMEDIATELY</h2>
+                    <p className="text-xl mt-2">This may be a life-threatening emergency</p>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {step === 'followup' && vagueResult && (
-            <FollowUpQuestions
-              vagueResult={vagueResult}
-              onComplete={handleFollowUpComplete}
-              onBack={handleFollowUpBack}
-              language={language}
-              translations={t.followUp}
-            />
-          )}
-
-          {step === 'analyzing' && (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mb-4"></div>
-              <p className="text-xl font-semibold text-gray-900">
-                {t.analyzing}
-              </p>
-              <p className="text-gray-600 mt-2">
-                {t.analyzingSubtext}
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Recommendation: {result.recommendation.replace('_', ' ')}
+              </h2>
+              <p className="text-xl text-gray-700">
+                Severity: <span className="font-semibold">{result.severity}</span>
               </p>
             </div>
-          )}
 
-          {step === 'results' && result && (
-            <div>
-              {/* Main Recommendation */}
-              <div className={`p-6 rounded-xl border-2 mb-6 ${getRecommendationColor(result.recommendation)}`}>
-                <div className="flex items-start gap-4">
-                  <AlertCircle className={`w-12 h-12 ${getRecommendationIcon(result.recommendation)} flex-shrink-0`} />
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      {t.results.recommendation} {result.recommendation.replace('_', ' ')}
-                    </h2>
-                    <p className="text-lg text-gray-700 mb-3">
-                      {t.results.severity} <span className="font-semibold">{result.severity}</span>
-                    </p>
-                    <p className="text-base text-gray-800 leading-relaxed">
-                      {result.reasoning}
-                    </p>
-                  </div>
-                </div>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Why:</h3>
+                <p className="text-gray-700 leading-relaxed">{result.reasoning}</p>
               </div>
 
-              {/* Timeframe */}
-              <div className="bg-blue-50 p-4 rounded-lg mb-6 flex items-center gap-3">
-                <Clock className="w-6 h-6 text-blue-600 flex-shrink-0" />
+              {result.timeframe && (
                 <div>
-                  <p className="font-semibold text-gray-900">{t.results.timeframe}</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Timeframe:</h3>
                   <p className="text-gray-700">{result.timeframe}</p>
                 </div>
-              </div>
+              )}
 
-              {/* Red Flags */}
               {result.redFlags && result.redFlags.length > 0 && (
-                <div className="bg-red-50 p-4 rounded-lg mb-6">
-                  <p className="font-semibold text-red-900 mb-2 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    {t.results.warningSignsTitle}
-                  </p>
-                  <ul className="space-y-1">
-                    {result.redFlags.map((flag, idx) => (
-                      <li key={idx} className="text-red-800">• {flag}</li>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Warning Signs Identified:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    {result.redFlags.map((flag, index) => (
+                      <li key={index}>{flag}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* Cost Comparison */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                  <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-red-600" />
-                    {t.results.emergencyRoom}
-                  </p>
-                  <p className="text-2xl font-bold text-red-600">{result.estimatedCost.er}</p>
-                  <p className="text-sm text-gray-600 mt-1">{t.results.averageCost}</p>
-                </div>
-
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                  <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-yellow-600" />
-                    {t.results.urgentCare}
-                  </p>
-                  <p className="text-2xl font-bold text-yellow-600">{result.estimatedCost.urgentCare}</p>
-                  <p className="text-sm text-gray-600 mt-1">{t.results.averageCost}</p>
-                </div>
-
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    {t.results.homeCare}
-                  </p>
-                  <p className="text-2xl font-bold text-green-600">{result.estimatedCost.homeCare}</p>
-                  <p className="text-sm text-gray-600 mt-1">{t.results.otcTelehealth}</p>
-                </div>
-              </div>
-
-              {/* What to Expect */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <p className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-blue-600" />
-                  {t.results.whatToExpect}
-                </p>
-                <p className="text-gray-700">{result.whatToExpect}</p>
-              </div>
-
-              {/* Alternatives */}
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                <div className="flex">
-                  <div className="ml-3">
-                    <p className="text-sm text-yellow-700">
-                      <span className="font-bold">{t.results.importantNote}</span>
-                      <br />
-                      {result.alternatives}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <a
-                  href="https://www.google.com/search?q=telemedicine+online+doctor"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-green-600 text-white p-4 rounded-lg font-semibold text-center hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Phone className="w-5 h-5" />
-                  {t.results.talkToDoctor}
-                </a>
-                <a
-                  href="https://www.google.com/maps/search/urgent+care+near+me"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-blue-600 text-white p-4 rounded-lg font-semibold text-center hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <MapPin className="w-5 h-5" />
-                  {t.results.findFacility}
-                </a>
-              </div>
-
-              {/* Amazon Affiliate Products Section */}
-              <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                  {t.results.productsTitle}
-                </h3>
-                <p className="text-sm text-gray-600 mb-6">
-                  {t.results.productsSubtitle}
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* First Aid Kit */}
-                  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
-                    <div className="overflow-hidden">
-                      <img 
-                        src="/images/first-aid-kit.jpg"
-                        alt="First Aid Only OSHA-Compliant First Aid Kit, 260 Pieces"
-                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
+              {result.estimatedCost && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Estimated Costs:</h3>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-3 bg-white rounded-lg border border-gray-300">
+                      <p className="font-semibold text-gray-700">ER</p>
+                      <p className="text-lg">{result.estimatedCost.er}</p>
                     </div>
-                    <div className="p-4">
-                      <h4 className="font-bold text-gray-800 mb-1">{t.results.firstAidKit.title}</h4>
-                      <p className="text-xs text-gray-500 mb-3">{t.results.firstAidKit.subtitle}</p>
-                      <p className="text-sm text-gray-600 mb-4">
-                        {t.results.firstAidKit.description}
-                      </p>
-                      <a 
-                        href="https://amzn.to/4iczKz1"
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="block w-full text-white font-semibold py-2 px-4 rounded text-center transition-colors"
-                        style={{backgroundColor: '#FF9900'}}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
-                      >
-                        {t.results.viewOnAmazon}
-                      </a>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        ⭐⭐⭐⭐⭐ {t.results.firstAidKit.badge}
-                      </p>
+                    <div className="p-3 bg-white rounded-lg border border-gray-300">
+                      <p className="font-semibold text-gray-700">Urgent Care</p>
+                      <p className="text-lg">{result.estimatedCost.urgentCare}</p>
                     </div>
-                  </div>
-
-                  {/* Thermometer */}
-                  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
-                    <div className="overflow-hidden">
-                      <img 
-                        src="/images/thermometer.jpg"
-                        alt="No-Touch Digital Thermometer for Adults and Kids"
-                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <h4 className="font-bold text-gray-800 mb-1">{t.results.thermometer.title}</h4>
-                      <p className="text-xs text-gray-500 mb-3">{t.results.thermometer.subtitle}</p>
-                      <p className="text-sm text-gray-600 mb-4">
-                        {t.results.thermometer.description}
-                      </p>
-                      <a 
-                        href="https://amzn.to/3X9lmxV"
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="block w-full text-white font-semibold py-2 px-4 rounded text-center transition-colors"
-                        style={{backgroundColor: '#FF9900'}}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
-                      >
-                        {t.results.viewOnAmazon}
-                      </a>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        ⭐⭐⭐⭐⭐ {t.results.thermometer.badge}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Blood Pressure Monitor */}
-                  <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow">
-                    <div className="overflow-hidden">
-                      <img 
-                        src="/images/blood-pressure.jpg"
-                        alt="OMRON Blood Pressure Monitor for Home Use"
-                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <h4 className="font-bold text-gray-800 mb-1">{t.results.bloodPressure.title}</h4>
-                      <p className="text-xs text-gray-500 mb-3">{t.results.bloodPressure.subtitle}</p>
-                      <p className="text-sm text-gray-600 mb-4">
-                        {t.results.bloodPressure.description}
-                      </p>
-                      <a 
-                        href="https://amzn.to/48ev3An"
-                        target="_blank"
-                        rel="noopener noreferrer nofollow"
-                        className="block w-full text-white font-semibold py-2 px-4 rounded text-center transition-colors"
-                        style={{backgroundColor: '#FF9900'}}
-                        onMouseEnter={(e) => e.target.style.backgroundColor = '#E88B00'}
-                        onMouseLeave={(e) => e.target.style.backgroundColor = '#FF9900'}
-                      >
-                        {t.results.viewOnAmazon}
-                      </a>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        ⭐⭐⭐⭐⭐ {t.results.bloodPressure.badge}
-                      </p>
+                    <div className="p-3 bg-white rounded-lg border border-gray-300">
+                      <p className="font-semibold text-gray-700">Home Care</p>
+                      <p className="text-lg">{result.estimatedCost.homeCare}</p>
                     </div>
                   </div>
                 </div>
+              )}
 
-                <p className="text-xs text-gray-500 mt-6 text-center">
-                  <span className="font-semibold">{language === 'es' ? 'Divulgación:' : 'Disclosure:'}</span> {t.results.disclosure}
-                </p>
-              </div>
+              {result.whatToExpect && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">What to Expect:</h3>
+                  <p className="text-gray-700 leading-relaxed">{result.whatToExpect}</p>
+                </div>
+              )}
 
-              {/* New Analysis Button */}
+              {result.alternatives && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Other Options:</h3>
+                  <p className="text-gray-700 leading-relaxed">{result.alternatives}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8">
               <button
-                onClick={resetTool}
-                className="w-full bg-gray-200 text-gray-900 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors mt-6"
+                onClick={resetApp}
+                className="w-full px-8 py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl"
               >
-                {t.results.newAnalysisButton}
+                Analyze Different Symptoms
               </button>
             </div>
-          )}
-        </div>
 
-        {/* Disclaimer */}
-        <div className="bg-white rounded-lg p-6 mb-6 text-sm text-gray-600">
-          <p className="font-semibold text-gray-900 mb-2">{t.disclaimer.title}</p>
-          <p>{t.disclaimer.text}</p>
-        </div>
-
-        {/* Stats Section */}
-        <div className="bg-white rounded-lg p-6 text-center">
-          <p className="text-3xl font-bold text-blue-600 mb-2">{t.stats.savings}</p>
-          <p className="text-gray-600">{t.stats.savingsText}</p>
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{t.stats.erVisits}</p>
-              <p className="text-sm text-gray-600">{t.stats.erVisitsText}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{t.stats.treatable}</p>
-              <p className="text-sm text-gray-600">{t.stats.treatableText}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{t.stats.copay}</p>
-              <p className="text-sm text-gray-600">{t.stats.copayText}</p>
+            <div className="mt-6 p-4 bg-gray-100 rounded-lg text-sm text-gray-600">
+              <p className="font-semibold mb-2">⚠️ Important Disclaimer:</p>
+              <p>
+                This tool provides general guidance only and is not a substitute for professional medical advice, 
+                diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider 
+                with any questions you may have regarding a medical condition. In case of emergency, call 911 immediately.
+              </p>
             </div>
           </div>
-        </div>
-
-        {/* Enhanced Footer with Legal Links */}
-        <div className="bg-white rounded-lg p-6 text-center border-t-2 border-gray-200 mt-8">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm">
-            <Link to="/about" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.aboutUs}
-            </Link>
-            <Link to="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.contact}
-            </Link>
-            <Link to="/privacy" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.privacy}
-            </Link>
-            <Link to="/terms" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.terms}
-            </Link>
-            <Link to="/affiliate-disclosure" className="text-gray-600 hover:text-blue-600 transition-colors">
-              {t.footer.affiliate}
-            </Link>
-          </div>
-          <p className="text-gray-600 text-sm">
-            {t.footer.copyright}
-          </p>
-          <p className="text-gray-500 text-xs mt-2">
-            {t.footer.note}
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );
 }
+
+export default App;

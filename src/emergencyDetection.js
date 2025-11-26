@@ -340,8 +340,12 @@ export function generateEmergencyResult(detection) {
   };
 }
 
-// Export all functions
+// Export detectEmergency as detect911Emergency for compatibility
+export const detect911Emergency = detectEmergency;
+
+// Default export for convenience
 export default {
+  detect911Emergency: detectEmergency,
   detectEmergency,
   getEmergencyResponse,
   generateEmergencyResult,
